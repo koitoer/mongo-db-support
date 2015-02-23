@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.koitoer.mongodb;
+package com.koitoer.mongodb.spring;
 
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -12,12 +12,16 @@ import java.util.TreeSet;
 import org.joda.time.LocalDate;
 import org.junit.Before;
 import org.junit.Test;
-import org.mongodb.morphia.Datastore;
-import org.mongodb.morphia.Key;
-import org.mongodb.morphia.Morphia;
-import org.mongodb.morphia.ValidationExtension;
-import org.mongodb.morphia.query.Query;
-import org.mongodb.morphia.query.UpdateResults;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Order;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.koitoer.mongodb.domain.Author;
 import com.koitoer.mongodb.domain.Book;
@@ -38,83 +42,84 @@ import static org.assertj.core.api.Assertions.*;
  * @author Koitoer
  *
  */
+@ContextConfiguration(locations = { "classpath:com/koitoer/spring/test-applicationContext.xml" })
+@RunWith(SpringJUnit4ClassRunner.class)
 public class MongoDBQueryTestSuite {
 
-Datastore dataStore = null;
+	@Autowired
+	private MongoTemplate mongoTemplate;
 	
+
 	@Before
 	public void init() throws UnknownHostException{
-		if(dataStore == null){
-			final Morphia morphia = new Morphia();
-			new ValidationExtension( morphia );
+		
+		mongoTemplate.dropCollection(Author.class);
+		mongoTemplate.dropCollection(Book.class);
+		mongoTemplate.dropCollection(Store.class);
+		
+		Author author = new Author("Kristina","Chodorow");
+		mongoTemplate.save(author);
+		Author author2 = new Author("Rick","Copeland");
+		mongoTemplate.save(author2);
+		Author author3 = new Author("Kyle","Banker");
+		mongoTemplate.save(author3);
+		Author author4 = new Author("Pramod J","Sadalage");
+		mongoTemplate.save(author4);
 			
-			final MongoClient client = new MongoClient( "localhost", 27017 );
-			dataStore = morphia
-			    .map( Store.class, Book.class, Author.class )
-			    .createDatastore( client, "bookstore" );
+		Book book1 = new Book("MongoDB: The Definitive Guide");
+		book1.setAuthors(Arrays.asList(author));
+		book1.setPublishedDate(new LocalDate(2013, 5, 23).toDate());
+		book1.setPublisher(new Publisher("O'Reilly"));
+		book1.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL")));
+		mongoTemplate.save(book1);
+		Book book2 = new Book("MongoDB Applied Design Patterns");
+		book2.setAuthors(Arrays.asList(author2));
+		book2.setPublishedDate(new LocalDate(2013, 5, 19).toDate());
+		book2.setPublisher(new Publisher("O'Reilly"));
+		book2.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL", "Patterns")));
+		mongoTemplate.save(book2);
+		Book book3 = new Book("MongoDB in Action");
+		book3.setAuthors(Arrays.asList(author3));
+		book3.setPublishedDate(new LocalDate(2011, 12, 16).toDate());
+		book3.setPublisher(new Publisher("Manning"));
+		book3.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL")));
+		mongoTemplate.save(book3);
+		Book book4 = new Book("NoSQL Distilled");
+		book4.setAuthors(Arrays.asList(author4));
+		book4.setPublishedDate(new LocalDate(2012, 8, 18).toDate());
+		book4.setPublisher(new Publisher("Addison Wesley"));
+		book4.setCategories(new TreeSet<String>(Arrays.asList("Databases", "NoSQL")));
+		mongoTemplate.save(book4);
+		
 			
-			dataStore.ensureIndexes();
-			dataStore.ensureCaps();
-			
-			dataStore.delete(dataStore.createQuery(Author.class));
-			dataStore.delete(dataStore.createQuery(Book.class));
-			dataStore.delete(dataStore.createQuery(Store.class));
-			
-			Author author = new Author("Kristina","Chodorow");
-			dataStore.save(author);
-			Author author2 = new Author("Rick","Copeland");
-			dataStore.save(author2);
-			Author author3 = new Author("Kyle","Banker");
-			dataStore.save(author3);
-			Author author4 = new Author("Pramod J","Sadalage");
-			dataStore.save(author4);
-			
-			Book book1 = new Book("MongoDB: The Definitive Guide");
-			book1.setAuthors(Arrays.asList(author));
-			book1.setPublishedDate(new LocalDate(2013, 5, 23).toDate());
-			book1.setPublisher(new Publisher("O'Reilly"));
-			book1.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL")));
-			dataStore.save(book1);
-			Book book2 = new Book("MongoDB Applied Design Patterns");
-			book2.setAuthors(Arrays.asList(author2));
-			book2.setPublishedDate(new LocalDate(2013, 5, 19).toDate());
-			book2.setPublisher(new Publisher("O'Reilly"));
-			book2.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL", "Patterns")));
-			dataStore.save(book2);
-			Book book3 = new Book("MongoDB in Action");
-			book3.setAuthors(Arrays.asList(author3));
-			book3.setPublishedDate(new LocalDate(2011, 12, 16).toDate());
-			book3.setPublisher(new Publisher("Manning"));
-			book3.setCategories(new TreeSet<String>(Arrays.asList("Databases", "Programming", "NoSQL")));
-			dataStore.save(book3);
-			Book book4 = new Book("NoSQL Distilled");
-			book4.setAuthors(Arrays.asList(author4));
-			book4.setPublishedDate(new LocalDate(2012, 8, 18).toDate());
-			book4.setPublisher(new Publisher("Addison Wesley"));
-			book4.setCategories(new TreeSet<String>(Arrays.asList("Databases", "NoSQL")));
-			dataStore.save(book4);
-			
-			
-			Store store = new Store("Waterstones Piccadilly");
-			store.setLocation(new Location(51.50957,-0.135484));
-			store.setStock(Arrays.asList(new Stock(book1, 10), new Stock(book2, 45),new Stock(book3, 2),new Stock(book4, 0)));
-			dataStore.save(store);
-			
-			Store store1 = new Store("Barnes & Noble");
-			store1.setLocation(new Location(40.786277,-73.978693));
-			store1.setStock(Arrays.asList(new Stock(book1, 7), new Stock(book2, 12),new Stock(book3, 15),new Stock(book4, 2)));
-			dataStore.save(store1);
-		}
+		Store store = new Store("Waterstones Piccadilly");
+		store.setLocation(new Location(51.50957,-0.135484));
+		store.setStock(Arrays.asList(new Stock(book1, 10), new Stock(book2, 45),new Stock(book3, 2),new Stock(book4, 0)));
+		mongoTemplate.save(store);
+		
+		Store store1 = new Store("Barnes & Noble");
+		store1.setLocation(new Location(40.786277,-73.978693));
+		store1.setStock(Arrays.asList(new Stock(book1, 7), new Stock(book2, 12),new Stock(book3, 15),new Stock(book4, 2)));
+		mongoTemplate.save(store1);
 	}
 	
 	
 	@Test
 	public void testFindBooksByName() {
-	    final List< Book > books = dataStore.createQuery( Book.class )
-	        .field( "title" ).containsIgnoreCase( "mongodb" )
-	        .order( "title" )
-	        .asList();
-	         
+		
+		Query query = new Query();
+		query.addCriteria(Criteria.where("title").is("MongoDB Applied Design Patterns"));
+	    List< Book > books = mongoTemplate.find(query, Book.class);
+	    assertThat( books ).hasSize( 1 );
+	    assertThat( books ).extracting( "title" )
+        .containsExactly(
+            "MongoDB Applied Design Patterns"
+        );
+	    
+	    query = new Query();
+		query.addCriteria(Criteria.where("title").regex("", "i"));
+	    books = mongoTemplate.find(query, Book.class);
+	    
 	    assertThat( books ).hasSize( 3 );
 	    assertThat( books ).extracting( "title" )
 	        .containsExactly(
@@ -126,20 +131,18 @@ Datastore dataStore = null;
 	
 	@Test
 	public void testFindBooksByAuthor() {
-	    final Author author = dataStore.createQuery( Author.class )
-	        .filter( "lastName =", "Banker" )
-	        .get();
-	         
-	    final List< Book > books = dataStore.createQuery( Book.class )
-	        .field( "authors" ).hasThisElement( author )
-	        .order( "title" )
-	        .asList();
+		Query query = new Query();
+		query.addCriteria(Criteria.where("author.lastName").is("Banker"));
+		query.with(new Sort(Direction.ASC, "title"));
+		
+	    final List< Book > books = mongoTemplate.find(query, Book.class);
+	   
 	         
 	    assertThat( books ).hasSize( 1 );
 	    assertThat( books ).extracting( "title" ).containsExactly( "MongoDB in Action" );        
 	}
 	
-	
+	/*
 	@Test
 	public void testFindBooksByCategoryAndPublishedDate() {
 	    final Query< Book > query = dataStore.createQuery( Book.class ).order( "-title" );        
@@ -338,5 +341,5 @@ Datastore dataStore = null;
 	        new BasicDBObject( "_id", "NoSQL" ).append( "count", 4 ),            
 	        new BasicDBObject( "_id", "Databases" ).append( "count", 4 )               
 	    );
-	}
+	}*/
 }
