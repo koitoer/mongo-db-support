@@ -27,7 +27,8 @@ import org.mongodb.morphia.utils.IndexDirection;
 public class Store {
 
 	 @Id private ObjectId id;
-	    @Version private long version;
+	 
+	     @Version private long version;
 	    @Property @Indexed( IndexDirection.DESC ) @NotEmpty private String name;
 	    @Embedded @Valid private List< Stock > stock = new ArrayList<Stock>();
 	    @Embedded @Indexed( IndexDirection.GEO2D ) private Location location;
@@ -105,6 +106,15 @@ public class Store {
 		 */
 		public void setLocation(Location location) {
 			this.location = location;
+		}
+		/* (non-Javadoc)
+		 * @see java.lang.Object#toString()
+		 */
+		@Override
+		public String toString() {
+			return "Store [id=" + id + ", version=" + version + ", name="
+					+ name + ", stock=" + stock + ", location=" + location
+					+ "]";
 		}
 	     
 	    

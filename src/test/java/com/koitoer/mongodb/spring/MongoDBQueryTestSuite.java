@@ -16,10 +16,13 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.GeospatialIndex;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Order;
+import org.springframework.data.mongodb.core.query.NearQuery;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -101,6 +104,9 @@ public class MongoDBQueryTestSuite {
 		store1.setLocation(new Location(40.786277,-73.978693));
 		store1.setStock(Arrays.asList(new Stock(book1, 7), new Stock(book2, 12),new Stock(book3, 15),new Stock(book4, 2)));
 		mongoTemplate.save(store1);
+		
+		mongoTemplate.indexOps(Store.class).ensureIndex( new GeospatialIndex("location") );
+
 	}
 	
 	
@@ -117,7 +123,8 @@ public class MongoDBQueryTestSuite {
         );
 	    
 	    query = new Query();
-		query.addCriteria(Criteria.where("title").regex("", "i"));
+		query.addCriteria(Criteria.where("title").regex("mongodb", "i"));
+		query.with(new Sort(Direction.ASC, "title"));
 	    books = mongoTemplate.find(query, Book.class);
 	    
 	    assertThat( books ).hasSize( 3 );
@@ -132,29 +139,27 @@ public class MongoDBQueryTestSuite {
 	@Test
 	public void testFindBooksByAuthor() {
 		Query query = new Query();
-		query.addCriteria(Criteria.where("author.lastName").is("Banker"));
+		query.addCriteria(Criteria.where("authors.lastName").is("Banker"));
 		query.with(new Sort(Direction.ASC, "title"));
 		
 	    final List< Book > books = mongoTemplate.find(query, Book.class);
-	   
-	         
+	 
 	    assertThat( books ).hasSize( 1 );
 	    assertThat( books ).extracting( "title" ).containsExactly( "MongoDB in Action" );        
 	}
 	
-	/*
+	
 	@Test
 	public void testFindBooksByCategoryAndPublishedDate() {
-	    final Query< Book > query = dataStore.createQuery( Book.class ).order( "-title" );        
-	         
-	    query.and(
-	        query.criteria( "categories" )
-	            .hasAllOf( Arrays.asList( "NoSQL", "Databases" ) ),
-	        query.criteria( "published" )
-	            .greaterThan( new LocalDate( 2013, 01, 01 ).toDate() )
-	    );
-	             
-	    final List< Book > books =  query.asList();        
+		Query query = new Query();
+		query.with(new Sort(Direction.DESC, "title"));
+		query.addCriteria(new Criteria().andOperator(
+				Criteria.where("categories").all(Arrays.asList( "NoSQL", "Databases" )),
+				Criteria.where("publishedDate").gt(new LocalDate( 2013, 01, 01 ).toDate())
+				));
+		
+		final List< Book > books = mongoTemplate.find(query, Book.class);       
+	     
 	    assertThat( books ).hasSize( 2 );
 	    assertThat( books ).extracting( "title" )
 	        .containsExactly(
@@ -163,55 +168,59 @@ public class MongoDBQueryTestSuite {
 	        );
 	}
 	
+	
 	@Test
 	public void testFindStoreClosestToLondon() {
-	    final List< Store > stores = dataStore                 
-	        .createQuery( Store.class )
-	        .field( "location" ).near( 51.508035, -0.128016, 1.0 )
-	        .asList();
-	 
+		
+		Query query = new Query();
+		query.addCriteria(Criteria.where("location").near(new Point( 51.508035, -0.128016))
+				.maxDistance(1));
+		final List< Store > stores = mongoTemplate.find(query, Store.class); 
+		
 	    assertThat( stores ).hasSize( 1 );
 	    assertThat( stores ).extracting( "name" )
 	        .containsExactly( "Waterstones Piccadilly" );
 	}
 	
+	
 	@Test
 	public void testFindStoreWithEnoughBookQuantity() {
-	    final Book book = dataStore.createQuery( Book.class )
-	        .field( "title" ).equal( "MongoDB in Action" )
-	        .get();
-	             
-	    final List< Store > stores = dataStore
-	        .createQuery( Store.class )
-	        .field( "stock" ).hasThisElement( 
-	            dataStore.createQuery( Stock.class )
-	                .field( "quantity" ).greaterThan( 10 )
-	                .field( "book" ).equal( book )
-	                .getQueryObject() )
-	        .retrievedFields( true, "name" )
-	        .asList();
-	             
+		
+		Query query = new Query();
+		query.addCriteria(Criteria.where("title").is("MongoDB in Action"));
+	    final Book book = mongoTemplate.findOne(query, Book.class);
+	    
+	    Query query2 = new Query();
+	    query2.addCriteria (Criteria.where("stock").
+	    		elemMatch(
+	    				new Criteria()
+	    					.andOperator(Criteria.where("quantity").gt(10),
+	    								 Criteria.where("book").is(book))));
+	    
+	    final List< Store > stores = mongoTemplate.find(query2, Store.class);
+
 	    assertThat( stores ).hasSize( 1 );        
 	    assertThat( stores ).extracting( "name" ).containsExactly( "Barnes & Noble" );        
 	}
 	
-	
+	/*
 	@Test
 	public void testSaveStoreWithNewLocation() {
-	    final Store store = dataStore
-	        .createQuery( Store.class )
-	        .field( "name" ).equal( "Waterstones Piccadilly" )
-	        .get();
+		
+		final Store store = mongoTemplate.findOne(
+				new Query().addCriteria(
+						Criteria.where("name").is("Waterstones Piccadilly")), Store.class);
 	         
 	    assertThat( store.getVersion() ).isEqualTo( 1 );
 	         
 	    store.setLocation( new Location( 50.50957,-0.135484 ) );
-	    final Key< Store > key = dataStore.save( store );               
-	         
-	    final Store updated = dataStore.getByKey( Store.class, key );
-	    assertThat( updated.getVersion() ).isEqualTo( 2 );        
+	    mongoTemplate.save(store);
+	    
+	    mongoTemplate.findById(store, Store.class);
+	    assertThat( store.getVersion() ).isEqualTo( 2 );        
 	}
 	
+
 	@Test( expected = ConcurrentModificationException.class )
 	public void testSaveStoreWithConcurrentUpdates() {
 	    final Query< Store > query = dataStore
@@ -228,21 +237,17 @@ public class MongoDBQueryTestSuite {
 	    store2.setName( "New Store 2" );
 	    dataStore.save( store2 );                              
 	}
-	
+	*/
 	@Test
 	public void testUpdateStoreLocation() {
-	    final UpdateResults< Store > results = dataStore.update( 
-	        dataStore
-	            .createQuery( Store.class )
-	            .field( "name" ).equal( "Waterstones Piccadilly" ),             
-	        dataStore
-	            .createUpdateOperations( Store.class )
-	            .set( "location", new Location( 50.50957,-0.135484 ) )
-	    );
-	         
-	    assertThat( results.getUpdatedCount() ).isEqualTo( 1 );        
+		
+		WriteResult writerResult = mongoTemplate.updateFirst(
+				Query.query(Criteria.where("name").is("Waterstones Piccadilly")), 
+				Update.update("location", new Location( 50.50957,-0.135484 )), Store.class);
+	    assertThat( writerResult.getN() ).isEqualTo( 1 );        
 	}
 	
+	/*
 	@Test
 	public void testFindStoreWithEnoughBookQuantity2() {
 	    final Book book = dataStore.createQuery( Book.class )
@@ -279,13 +284,14 @@ public class MongoDBQueryTestSuite {
 	    assertThat( result.getN() ).isEqualTo( 1 );                
 	}
 	
-	
+	*/
 	@Test
 	public void testDeleteAllStores() {
-	    final WriteResult result = dataStore.delete( dataStore.createQuery( Store.class ) );
+	    final WriteResult result = mongoTemplate.remove(new Query(), Store.class);
 	    assertThat( result.getN() ).isEqualTo( 2 );                
 	}
 	
+	/*
 	@Test
 	public void testFindAndDeleteBook() {
 	    final Book book = dataStore.findAndDelete( 
