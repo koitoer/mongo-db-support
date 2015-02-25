@@ -17,8 +17,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.geo.Point;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.index.GeospatialIndex;
+import org.springframework.data.mongodb.core.mapreduce.GroupBy;
+import org.springframework.data.mongodb.core.mapreduce.GroupByResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.NearQuery;
 import org.springframework.data.mongodb.core.query.Query;
@@ -28,10 +33,12 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.koitoer.mongodb.domain.Author;
 import com.koitoer.mongodb.domain.Book;
+import com.koitoer.mongodb.domain.BookTotal;
 import com.koitoer.mongodb.domain.Location;
 import com.koitoer.mongodb.domain.Publisher;
 import com.koitoer.mongodb.domain.Stock;
 import com.koitoer.mongodb.domain.Store;
+import com.mongodb.AggregationOptions;
 import com.mongodb.AggregationOutput;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -247,105 +254,120 @@ public class MongoDBQueryTestSuite {
 	    assertThat( writerResult.getN() ).isEqualTo( 1 );        
 	}
 	
-	/*
+
 	@Test
 	public void testFindStoreWithEnoughBookQuantity2() {
-	    final Book book = dataStore.createQuery( Book.class )
-	        .field( "title" ).equal( "MongoDB in Action" )
-	        .get();
+		
+		
+	    final Book book = mongoTemplate.findOne(Query.query(Criteria.where("title").is("MongoDB in Action")),Book.class);
+	    
+	    final Store store = mongoTemplate.findAndModify(
+	    		Query.query(Criteria.where("stock")
+	    				.elemMatch(
+	    						new Criteria().andOperator(
+	    								Criteria.where("book").is(book),
+	    								Criteria.where("quantity").gt(10)
+	    								))),
+	    		Update.update("stock.$.quantity", -10), 
+	    		new FindAndModifyOptions().returnNew(true),
+	    		Store.class);
 	         
-	    final Store store = dataStore.findAndModify( 
-	        dataStore
-	            .createQuery( Store.class )
-	            .field( "stock" ).hasThisElement( 
-	                dataStore.createQuery( Stock.class )
-	                    .field( "quantity" ).greaterThan( 10 )
-	                    .field( "book" ).equal( book )
-	                    .getQueryObject() ),             
-	        dataStore
-	            .createUpdateOperations( Store.class )
-	            .disableValidation()
-	            .inc( "stock.$.quantity", -10 ),
-	        false
-	    );
-	         
-	    assertThat( store ).isNotNull();       
+	    assertThat( store ).isNotNull();   
+	    assertThat(store.getStock().get(2).getQuantity()).isEqualTo(-10); 
+	 
 	}
 	
-	
+
 	@Test
 	public void testDeleteStore() {
-	    final Store store = dataStore
-	        .createQuery( Store.class )
-	        .field( "name" ).equal( "Waterstones Piccadilly" )
-	        .get();
-	         
-	    final WriteResult result = dataStore.delete( store );
-	    assertThat( result.getN() ).isEqualTo( 1 );                
+	  final WriteResult result = mongoTemplate.remove(
+			  	new Query(Criteria.where("name").is("Waterstones Piccadilly")), Store.class);
+	  assertThat( result.getN() ).isEqualTo( 1 );      
+	               
 	}
 	
-	*/
+
 	@Test
 	public void testDeleteAllStores() {
 	    final WriteResult result = mongoTemplate.remove(new Query(), Store.class);
 	    assertThat( result.getN() ).isEqualTo( 2 );                
 	}
 	
-	/*
+
 	@Test
 	public void testFindAndDeleteBook() {
-	    final Book book = dataStore.findAndDelete( 
-	        dataStore
-	            .createQuery( Book.class )
-	            .field( "title" ).equal( "MongoDB in Action" )
-	        );
-	         
-	    assertThat( book ).isNotNull();                
-	    assertThat( dataStore.getCollection( Book.class ).count() ).isEqualTo( 3 );
+		Book book = mongoTemplate.findAndRemove(Query.query(
+				Criteria.where("title").is("MongoDB in Action")), Book.class);         
+	    assertThat( book ).isNotNull();    
+	    assertThat( mongoTemplate.count(new Query(), Book.class) ).isEqualTo( 3 );
 	}
 	
+
+	/**
+	 * https://github.com/spring-projects/spring-data-mongodb/blob/master/spring-data-mongodb/
+	 * src/test/java/org/springframework/data/mongodb/core/mapreduce/GroupByTests.java
+	 * **/
 	@Test
 	public void testGroupBooksByPublisher() {
-	    final DBObject result = dataStore
-	        .getCollection( Book.class )
-	        .group(
-	            new BasicDBObject( "publisher.name", "1" ),
-	            new BasicDBObject(),
-	            new BasicDBObject( "total", 0 ),
-	            "function ( curr, result ) { result.total += 1 }"
-	        );        
-	    assertThat( result ).isInstanceOf( BasicDBList.class );
-	                          
-	    final BasicDBList groups = ( BasicDBList )result;
-	    assertThat( groups ).hasSize( 3 );        
-	    assertThat( groups ).containsExactly( 
+	
+		GroupByResults<Book> results = mongoTemplate.group(
+				"book",
+				GroupBy.key("publisher.name").initialDocument(new BasicDBObject("total", 0))
+						.reduceFunction("function(curr, result) { result.total += 1 }"), Book.class);
+		/*
+		db.collection.group({ key, reduce, initial [, keyf] [, cond] [, finalize] })
+		Executing Group with DBObject 
+			[{ "group" : { 
+						//Over what property you will group
+						"key" : { "publisher.name" : 1} , 
+						 //An aggregation function that operates on the documents during the grouping operation
+						 "$reduce" : "function(curr, result) { result.total += 1 }" , 
+						 //How to start any var in the query
+						 "initial" : { "total" : 0} , 
+						 "ns" : "book" , 
+						 //If you want to add any conditional on the values
+						 "cond" :  null }}]
+		*/	
+	    assertThat( results.getKeys() ).isEqualTo(3);
+	    assertThat( (BasicDBList)results.getRawResults().get("retval")).containsExactly( 
 	        new BasicDBObject( "publisher.name", "O'Reilly" ).append( "total", 2.0 ), 
 	        new BasicDBObject( "publisher.name", "Manning" ).append( "total", 1.0 ),
 	        new BasicDBObject( "publisher.name", "Addison Wesley" ).append( "total", 1.0 ) 
 	    );
 	}
 	
+	
+	/**
+	 * https://github.com/spring-projects/spring-data-mongodb/blob/master/spring-data-mongodb/src/test/java/
+	 * org/springframework/data/mongodb/core/aggregation/AggregationTests.java
+	 * **/
 	@Test
 	public void testGroupBooksByCategories() {
-	    final DBCollection collection = dataStore.getCollection( Book.class );
-	         
-	    final AggregationOutput output = collection
-	        .aggregate(
-	            Arrays.< DBObject >asList(
-	                new BasicDBObject( "$project", new BasicDBObject( "title", 1 )
-	                   .append( "categories", 1 ) ),
-	                new BasicDBObject( "$unwind", "$categories"),
-	                new BasicDBObject( "$group", new BasicDBObject( "_id", "$categories" )
-	                   .append( "count", new BasicDBObject( "$sum", 1 ) ) )
-	            )               
-	        );
-	         
-	    assertThat( output.results() ).hasSize( 4 );
-	    assertThat( output.results() ).containsExactly(              
-	        new BasicDBObject( "_id", "Patterns" ).append( "count", 1 ),
-	        new BasicDBObject( "_id", "Programming" ).append( "count", 3 ),
-	        new BasicDBObject( "_id", "NoSQL" ).append( "count", 4 ),            
-	        new BasicDBObject( "_id", "Databases" ).append( "count", 4 )               
-	    );
-	}*/
+		
+		Aggregation aggregation = Aggregation.newAggregation(
+					Aggregation.project("categories"),
+					Aggregation.unwind("categories"),
+					Aggregation.group("categories").count().as("count"));
+	
+		/*		Executing aggregation: 
+		{ "aggregate" : "book" , 
+		  "pipeline" : [    
+		  					//Passes along the documents with only the specified fields to the next stage in the pipeline
+		  					{ "$project" : { "categories" : 1}} ,
+		   					//Deconstructs an array field from the input documents to output a document for each element
+							{ "$unwind" : "$categories"} , 
+							{ "$group" : { "_id" : "$categories" , "count" : { "$sum" : 1}}}
+						]}
+		*/
+
+		AggregationResults<DBObject> results = mongoTemplate.aggregate(aggregation, "book", DBObject.class);
+
+		   assertThat( results.getMappedResults()).containsExactly( 
+				   new BasicDBObject( "_id", "Patterns" ).append( "count", 1 ),
+			        new BasicDBObject( "_id", "Programming" ).append( "count", 3 ),
+			        new BasicDBObject( "_id", "NoSQL" ).append( "count", 4 ),            
+			        new BasicDBObject( "_id", "Databases" ).append( "count", 4 )  
+			    );
+
+	}
 }
