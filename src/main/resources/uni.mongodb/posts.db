@@ -1,0 +1,16 @@
+POSTS
+_id
+author
+body
+comments []
+    body
+    email
+    author
+date
+permalink
+tags []
+title
+
+USERS
+_id
+password
