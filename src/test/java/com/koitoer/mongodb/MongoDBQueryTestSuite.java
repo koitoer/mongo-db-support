@@ -228,7 +228,7 @@ Datastore dataStore = null;
 	
 	@Test
 	public void testUpdateStoreLocation() {
-	    final UpdateResults< Store > results = dataStore.update( 
+	    final UpdateResults results = dataStore.update(
 	        dataStore
 	            .createQuery( Store.class )
 	            .field( "name" ).equal( "Waterstones Piccadilly" ),             

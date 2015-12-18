@@ -22,7 +22,7 @@
 		<junit.version>4.12</junit.version>
 
 		<!-- Mongo DB -->
-		<org.mongodb.morphia.version>0.106</org.mongodb.morphia.version>
+		<org.mongodb.morphia.version>1.0.1</org.mongodb.morphia.version>
 		<org.mongodb.version>1.5.5.RELEASE</org.mongodb.version>
 	</properties>
 	
@@ -106,6 +106,12 @@
 			<artifactId>junit</artifactId>
 			<version>${junit.version}</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>6.8.8</version>
 		</dependency>
 
 		<dependency>
