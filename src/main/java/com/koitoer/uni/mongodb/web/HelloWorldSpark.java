@@ -20,6 +20,17 @@ public class HelloWorldSpark {
 			}
 		});
 
+		//http://localhost:4567/echo/koitoer
+		Spark.get(new Route("/echo/:thing") {
+
+			@Override
+			public Object handle(final Request request, final Response response) {
+				return request.params(":thing");
+			}
+		});
+
+
+
 	}
 
 }
