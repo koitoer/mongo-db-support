@@ -1,0 +1,187 @@
+Create  -   Insert  -   Insert
+Read    -   Find   -   Select
+Update  -   Update  -   Update
+Delete  -   Remove  -   Delete
+
+CRUD operations exist as a methods functions in programming language API's, not a SQL language
+Operation code transmitted as a series of bytes over the network, with a protocol.
+
+$mongo -->  Command to connect with mongo.
+$help   --> A list of topics
+
+Mongo shell is an interactive javascript.
+
+for(i = 0 ; i < 3; i++) print("hello, MongoDB developer!");
+for(i = 0 ; i < 3; i++) print("hello, MongoDB developer!" + i);
+z = { a : 1 }
+z.a = 1
+z["a"] = 1
+
+BSON
+Binary JSON, is a binary-encoded serialization of JSON
+double, string, embedded objects, embedded arrays, null, boolean
+binary data type, objectID("_id"), datetime, int32, int64, regular expressions.
+_id = PK will be immutable, no changes allowed. If you don't provide mongo will provide it
+
+doc = { "name" : "Smith", "age" : 30 , "profession" : "hacker"}
+db <-- The used database.
+db.people <-- Collection
+db.people.insert(doc);
+db.people.find() <-- All the document in the collection
+db.people.findOne() <-- One document random at the collection
+db.people.findOne().pretty() <-- More readable
+db.people.findOne({ CRITERIA }) <-- Analogous to the WHERE clause
+db.people.findOne({ "name" : "Jones" }) <-- Find One with criteria
+db.people.findOne({ CRITERIA }, { FIELDS }) <-- What fields should come back
+db.people.findOne({ "name" : "Jones" }, { "name": true, "_id" : false })
+
+
+for(i=0; i<1000; i++) {
+    names = ["exam", "essay", "quiz"];
+    for(j=0; j<3; j++){
+        db.scores.insert({"student" : i , "type" : names[j], score: Math.round(Math.random()*100)})
+    }
+}
+
+db.people.findOne({ CRITERIA1, CRITERIA2 }, { FIELDS }) <-- What fields should come back
+db.scores.findOne({ "student" : 19 , type : "essay"})
+db.scores.findOne({ "student" : 19 , type : "essay"}, { ""score": true, "_id" : false })
+db.scores.find({ "score" : 50 , type : "essay"}, { "student": true, "_id" : false })
+db.scores.count()
+
+Query by example queries.
+db.scores.find({ "score" : { $gt : 95 }}) <-- Conditional in a property
+db.scores.find({ "score" : { $gt : 95 },  type: "essay" })
+db.scores.find({ "score" : { $gt : 95, $lte : 98 },  type: "essay" })
+$gte, $lte
+UTF representation of the string. Not cross data type boundaries.
+
+
+//Query base on the structure
+db.people.find({ profession : { $exists : true}});
+//Base on the type of particular field // Numerical code in BSON
+db.people.find({ name : { $type : 2 }});
+//Support for string patterns with regex, can not be optimized
+db.people.find({ name : { $regex : "a" }}); <-- Find where name contains "a"
+db.people.find({ name : { $regex : "e$" }}); <-- End with letter "e"
+//Can be optimized, with no wildcards.
+db.people.find({ name : { $regex : "^A" }}); <-- Start with "A"
+
+$or Operator // prefix operator, takes an array and make OR, array of documents treated as query, UNION
+db.people.find({ $or : [
+                        {name : {$regex : "e$"}},
+                        {age  : {$exists : true}}
+                       ]})
+
+$and Operator // Conjunction, could be express in two ways.
+db.people.find({ $and : [
+                        {name : {$gt : "C"}},
+                        {name  : {$regex : "a"}}
+                       ]})
+//This will be more performing
+db.people.find({ name : { $gt : "C", $regex : "a"}})
+
+//The next two are not equals
+db.people.find({ score : { $gt : 50, $lt : 60}})
+//The second embedded will override the gt 50 will not add
+db.people.find({ score : { $gt : 50} ,  score : { $lt : 60}})
+
+
+//ARRAYS.
+db.accounts.insert({name : "Howard", favorites : ["pretzels", "beer"]});
+db.accounts.insert({name : "George", favorites : ["ice cream", "pretzels"]});
+//Queries al polymorphic.
+db.accounts.find({ favorites : "pretzels" }) <-- Check polymorphic between array and not array.
+db.accounts.find({ favorites : "beer" }) <-- Brings that have beer in the array
+db.accounts.find({ favorites : "beer" }, name : { $gt : "H" })
+//$all, matches any document that have ALL the specify elements in the array, use another array
+//does not import the order but need to match ALL
+db.accounts.find({ favorites : { $all : ["pretzels", "beer"] }})
+//$in, matches any of the values that are in the array
+db.accounts.find({ name : { $in : ["Howard", "John"] }}
+db.accounts.find({ favorites : { $in : ["beer", "ice cream"] }}
+
+
+//Queries dot notation, document can nest.
+db.users.insert({name : "koitoer" , email : { work : "koitoer@ge.com" , personal : "koitoe@gmail.com"}});
+db.users.find({email : { work : "koitoer@ge.com" , personal : "koitoe@gmail.com"}}) <-- MATCH
+db.users.find({email : { personal : "koitoe@gmail.com", work : "koitoer@ge.com" }}) <-- NOT MATCH, order is IMPORTANT
+db.users.find({email : { work : "koitoer@ge.com"}});  <-- NOT MATCH, content is not the same
+db.users.find({ "email.work" : "koitoer@ge.com" }); <-- MATCH, allow reach of nested document, specific piece with know of all others.
+
+//Querying cursors.
+//Programming loop.
+//Cursor are created and return to the shell, so you can use the cursor for programming tasks.
+cur = db.people.find(); null;
+cur.hasNext();
+cur.next();
+while(cur.hasNext()) printjson(cur.next());
+cur.limit(5); null; <-- Just take 5
+while(cur.hasNext()) printjson(cur.next()); <-- Here is when the query is executed in mongodb.
+cur.sort({name : -1 }); null; <-- Cursor modifier to give an order. Reverse order. Lexicographically
+while(cur.hasNext()) printjson(cur.next()); <-- Here is when the query is executed in mongodb.
+cur.sort({name : -1 }).limit(3); null; <-- chaining and modify the cursors, modifier the info before go db.
+//Not process in memory there are operators in the sever side.
+cur.sort({name : -1 }).limit(3).skip(2); null;  <-- skipping the first two
+SORT/SKIP/LIMIT
+
+//Counting.
+db.scores.find({type : "exam"})
+db.scores.count({type : "exam"})
+
+//Update - At least two argument
+db.people.update({ CRITERIA }, { REPLACEMENT}) <-- not change the ID, whole cell replacement.
+//1. Override any other values, whole set replacement.
+db.people.update({ name :  "Smith" },{ name : "Thompson", salary : 50000})
+//2. Modify only specific fields.
+db.people.update({ name :  "Smith" }, { $set : { age : 30 }}) <-- If don't exists will be created. ADD or MODIFY
+db.people.update({ name :  "Smith" }, { $inc : { age : 1 }})  <-- Increment if exist if no create with 1
+//Remove a field from a document
+db.people.update({ name :  "Jones" } , { $unset : {"profession" : 1 }}); <-- Remove properties not required
+//Manipulate arrays
+db.arrays.insert({_id : 0 , a : [1, 2, 3, 4]})
+db.arrays.update({_id : 0} , {$set : { "a.2" : 5 }}) <--- [1, 2, 5, 4] Modify the third element
+db.arrays.push({_id : 0} , {$push : { "a" : 6 }}) <--- [1, 2, 5, 4, 6] Add element at end of array
+db.arrays.push({_id : 0} , {$pop : { "a" : 1 }}) <--- [1, 2, 5, 4 ] Remove one element at the end of array
+db.arrays.push({_id : 0} , {$pop : { "a" : -1 }}) <--- [2, 5, 4 ] Remove first element of the array
+db.arrays.push({_id : 0} , {$pushAll : { "a" : [7, 8, 9]}}) <--- [2, 5, 4, 7, 8, 9] Add all elements, could have duplicates
+db.arrays.push({_id : 0} , {$pull: { "a" : 5 }}) <--- [2, 4, 7, 8, 9]  Remove the selected value from array
+db.arrays.push({_id : 0} , {$pullAll: { "a" : [2, 4, 8] }}) <--- [7, 9]  Remove all the values.
+db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Add the value to the array
+db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Idempotent several times.
+//3. Upsert > Update or exist (Upsert create new values if no records match.)
+db.people.update({ name :  "George" }, { $set : { age : 40 }}, {upsert : true }) <-- Construct new element.
+//4. Multi-update ( {} <-- Match every document in the collection )
+db.people.update({ }, { $set : { title : "Dr" }} ) <-- Just one document in the collection, DEFAULT behavior
+db.people.update({ }, { $set : { title : "Dr" }}, {multi : true }) <-- Affect all of them
+//Update run in one thread, but could pause to let other operations to proceed. "YIELDING", MUTEX lock
+//Are not isolated transactions, affect, then yield and then pickup again.
+//Atomicity on document level, not see incomplete record information.
+
+
+//REMOVE
+db.people.remove({CRITERIA})
+db.people.remove({}) <-- All will be removed one by one. One by one update.
+db.people.remove({name : "Alice"}) <-- Remove with name alice, NOT need to use MULTI is automatically
+db.people.remove() <-- Not permitted
+db.people.drop({}) <-- Must faster that be one by one, also discard INDEXES
+
+
+
+db.fruit.insert({"name":"apple", "color":"red", "shape":"round"}) <-- QUIZ
+db.users.findOne({ "username" : "dwight" }, { "email": true, "_id" : false}) <-- QUIZ
+db.scores.find({ "score" : 50 , type : "essay"}, { "student": true, "_id" : false }) <-- QUIZ
+db.users.find({ "name" : { $regex : "q" },  "email" : {$exists : true}}) <--- QUIZ
+db.scores.find({ $or : [
+                        {score : {$lt : 50}},
+                        {score : {$gt : 90}}
+                       ]})    <--- QUIZ
+
+db.catalog.find({ "price" : {$gt : 10000 }, "reviews.rating" : {$gte : 5 } });  <-- QUIZ
+db.scores.count({type : "essay", score: {$gt : 90}} ) <--- QUIZ
+db.user.update({"username", "splunker"}, {$set : {"country" : "RU"}}) <-- QUIZ
+db.users.update({'username': 'jimmy'}, {'$unset': {'interests': 1}}) <--- QUIZ
+
+{ _id : "Mike", interests : [ "botany", "skydiving", "skydiving", "skiing" ] } <-- QUIZ
+db.scores.update({ score : {$lt : 70}} , { $inc : { score : 20 }}, {multi : true }) <-- QUIZ
+db.scores.remove({score: {$lt:60}}) <-- QUIZ
