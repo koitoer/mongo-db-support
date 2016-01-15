@@ -185,3 +185,7 @@ db.users.update({'username': 'jimmy'}, {'$unset': {'interests': 1}}) <--- QUIZ
 { _id : "Mike", interests : [ "botany", "skydiving", "skydiving", "skiing" ] } <-- QUIZ
 db.scores.update({ score : {$lt : 70}} , { $inc : { score : 20 }}, {multi : true }) <-- QUIZ
 db.scores.remove({score: {$lt:60}}) <-- QUIZ
+
+
+//HW2.2
+db.grades.find({"score" : {$gte :  65}}).sort({ "score" : 1 }).limit(1)
