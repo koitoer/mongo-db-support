@@ -1,0 +1,80 @@
+RDS - Third normal form - Agnostic to the applications
+MongoDB -Application - Driven Schema
+    Read only / What are accessed more frequently
+
+1. Support for rich documents, not tabular data, JSON and arrays.
+2. No manage for joins
+3. Pre-join and/or embedded data  <-- Embed data in ways that makes sense to your application
+4. No constraints, no FK <-- Living without constraints, no guarantee that data is consistent between ids
+                         <-- Embedded sometimes is the best way to guarantee that, that appears directly in
+                                the document
+5. Atomic operation, mongo don't support transactions.
+                        <-- Living without transactions, but we have atomic operations
+                        Atomicity
+                        Consistency
+                        Isolation
+                        Durability
+                                <-- All the changes will be completed before anyone access the information
+                                <-- 1. Restructure your code, working in a single document
+                                <-- 2. Implement some sort of locking in software, locks, syncronized, final
+                                <-- 3. Tolerate, support certain inconsistencies.
+
+6. No declared schema
+
+Goals of normalization
+1.Free the database of modification anomalies <-- embedded data non create anomalies, but performance could duplicate.
+2.Minimize redesign when extending <-- mongo have a lot of flexibility
+3.Avoid any bias toward any particular access pattern. <-- make application/solution
+
+If you are doing in a RDS way, you probably are doing it bad !!!
+
+Relations =======================================================
+
+(1-1)
+Employee--Resume
+  . Embed employee in resume
+  . Embed resume in employee
+  . Use the id in employee for his resume
+  . Use the id in resume for his employee
+  * Frequency of access, a lot of impact where impact
+  * Size of the items, to keep separately
+  * Size of the document, if is larger than 16MB
+  * Atomicity of data, update it all at once, you have embedded
+
+(1-Many)
+City-/Person
+    . Use array of person in city wont work
+    . Use people collection and embed the city <-- Duplication of data, could cause inconsistencies
+    . True linking though the unique id of the other collection <-- Reference to city to people
+    . Requires to collection.
+
+(1-Few)
+BlogPosts-/Comments
+    . Feasible to have blog and embed the comments as an array
+
+(Many-Many)
+Books/-/Authors
+    . Linked created and array of books in the author collection
+    . Linked the books with the array of authors.
+    . Have the link in two sizes.
+
+Multikey indexes.
+db.collection.ensureIndexes. Useful when we have embedded data, to link and embed in efficient way when you query.
+Benefits of embedding.
+    1. Improve read performance. <-- High latency on the disks/High bandwidth, collocated the data in the same sector
+    2. One round trip to the DB.
+    -1. You could make the write operations more slow if you modify it.
+
+Trees.
+Home/Outdoors/Winter/Snow.
+1. We can make the parent in the child record, and make it recursive to the top.
+2. We can have the children nodes all of them
+3. We can have the list of ancestors
+
+When to de-normalize
+1:1         Embed
+1:Many      Embed from the many to one.
+Many:Many   Link
+
+
+
