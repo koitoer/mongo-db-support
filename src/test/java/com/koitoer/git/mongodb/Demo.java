@@ -31,7 +31,7 @@ public class Demo extends BaseTest{
 		koitoer = new GithubUser("koitoer");
 		koitoer.fullName = "Koitoer";
 		koitoer.memberSince = date;
-		koitoer.following = 0;
+		koitoer.following = 1000;
 		ds.save(koitoer);
 	}
 
@@ -67,11 +67,13 @@ public class Demo extends BaseTest{
 			iterator.next();
 		}
 
+		//You can start iterator again
 		iterator = fetch.iterator();
 		while(iterator.hasNext()){
 			iterator.next();
 		}
 
+		//Java field or mongodb field
 		query.field("owner").equal(koitoer).get();
 
 		GithubUser memberSince =  ds.createQuery(GithubUser.class).field("memberSince").equal(date).get();
@@ -95,9 +97,13 @@ public class Demo extends BaseTest{
 	public void massUpdates(){
 		UpdateOperations<GithubUser> update = ds.createUpdateOperations(GithubUser.class).inc("followers").set("following", 42);
 		Query<GithubUser> query = ds.createQuery(GithubUser.class).field("followers").equal(0);
+		//Update records according to the update operations, bulk operations
 		ds.update(query, update);
 	}
 
+	/**
+	 * Unknown number of changes affect the data and throws the exception
+	 */
 	@Test(dependsOnMethods = {"repositories"}, expectedExceptions = { ConcurrentModificationException.class})
 	public void errorOnVersion(){
 		Organization organization =  ds.createQuery(Organization.class).get();

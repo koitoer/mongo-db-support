@@ -13,5 +13,5 @@ public class BaseTest {
 
 	MongoClientOptions options = MongoClientOptions.builder().connectionsPerHost(100).build();
 	MongoClient client = new MongoClient(new ServerAddress(), options);
-	public Datastore ds = new Morphia().createDatastore(client, "githubDb");
+	public Datastore ds = new Morphia().createDatastore(client, "school");
 }

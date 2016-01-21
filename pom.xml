@@ -28,6 +28,8 @@
 
 	  	<!-- Spark framework -->
 	  	<com.spark.version>1.1.1</com.spark.version>
+	    <google.guava.version>16.0.1</google.guava.version>
+
 
 	</properties>
 	
@@ -38,7 +40,11 @@
 			<artifactId>spring-context</artifactId>
 			<version>${spring-framework.version}</version>
 		</dependency>
-		
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${google.guava.version}</version>
+		</dependency>
 		<!-- Spring Framework - Web Services -->
 
 		<!-- Logging with SLF4J & LogBack -->

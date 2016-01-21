@@ -76,5 +76,125 @@ When to de-normalize
 1:Many      Embed from the many to one.
 Many:Many   Link
 
+expireAfterSeconds is TTL, will expire after certain time.
+
+MORPHIA ============================
+@Entity <-- Basic entry point for morphia.
+@Indexes <-- Group the @Index annotation
+@Index <-- Add the index and its properties
+@Indexed <-- Above the properties, is other way
+@Id <-- Every morphia entity needs, any type could works
+@Property <-- Not really needed but morphia will take by default all of them
+@Reference <-- Array of DBRef() , could be eager of lazy, not constraint of validated, no FK!!!
+@Transient <-- Don't save the property
+@Version <-- Add the version to the document
+
+
+<-- HW3.1 -->
+mongoimport -d school -c students < students.json
+
+
+package course;
+
+import javax.management.Query;
+import javax.print.Doc;
+
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.UpdateOptions;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.*;
+
+public class BlogPostDAO {
+    MongoCollection<Document> postsCollection;
+
+    public BlogPostDAO(final MongoDatabase blogDatabase) {
+        postsCollection = blogDatabase.getCollection("posts");
+    }
+
+    // Return a single post corresponding to a permalink
+    public Document findByPermalink(String permalink) {
+        // todo  XXX
+        final Bson filter = new Document().append("permalink", permalink);
+        Document post = postsCollection.find(filter).first();
+        return post;
+    }
+
+    // Return a list of posts in descending order. Limit determines
+    // how many posts are returned.
+    public List<Document> findByDateDescending(int limit) {
+
+        // todo,  XXX
+        // Return a list of Documents, each one a post from the posts collection
+        final Bson sort = new Document().append("date", -1);
+        List<Document> posts = postsCollection.find().limit(limit).sort(sort).into(new ArrayList<Document>());;
+
+
+        return posts;
+    }
+
+
+    public String addPost(String title, String body, List tags, String username) {
+
+        System.out.println("inserting blog entry " + title + " " + body);
+
+        String permalink = title.replaceAll("\\s", "_"); // whitespace becomes _
+        permalink = permalink.replaceAll("\\W", ""); // get rid of non alphanumeric
+        permalink = permalink.toLowerCase();
+        permalink = permalink+ (new Date()).getTime();
+
+
+        // todo XXX
+        // Remember that a valid post has the following keys:
+        // author, body, permalink, tags, comments, date
+        //
+        // A few hints:
+        // - Don't forget to create an empty list of comments
+        // - for the value of the date key, today's datetime is fine.
+        // - tags are already in list form that implements suitable interface.
+        // - we created the permalink for you above.
+
+        // Build the post object and insert it
+        Document post = new Document();
+        post.append("author", username);
+        post.append("body", body);
+        post.append("permalink", permalink);
+        post.append("comments", new ArrayList<Document>(0));
+        post.append("date", new Date());
+        post.append("tags", tags);
+        post.append("title", title);
+
+        postsCollection.insertOne(post);
+        return permalink;
+    }
+
+
+    // Append a comment to a blog post
+    public void addPostComment(final String name, final String email, final String body,
+                               final String permalink) {
+
+        // todo  XXX
+        Document comment = new Document();
+        if(email != null){
+            comment.append("email", email);
+        }
+        comment.append("author", name);
+        comment.append("body", body);
+
+        Document doc = postsCollection.find(new Document().append("permalink", permalink)).first();
+        final UpdateOptions updateOptions =  new UpdateOptions();
+        updateOptions.upsert(true);
+        postsCollection.updateOne(new Document().append("permalink", permalink),new Document("$addToSet", new Document("comments", comment)) , updateOptions);
+
+        // Hints:
+        // - email is optional and may come in NULL. Check for that.
+        // - best solution uses an update command to the database and a suitable
+        //   operator to append the comment on to any existing list of comments
+
+    }
+}
+
 
 
