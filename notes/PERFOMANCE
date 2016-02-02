@@ -1,0 +1,224 @@
+MMAP
+Pages in memory space, that have certain size, if the page is not loaded in memory
+the MMAP storage engine go to the disk and bring it.
+1. Collection Level Locking, multiple reader single writer on a particular collection
+    In different collections will be this possible.
+    Non offer document level locking.
+2. In place updates.
+3. Power of two sizes (3-4) (19-32) so collection can growth.
+4. Is built on top of the mmap system call that maps files into memory
+
+Database engine have some algorithm to know what are in disk and what in memory.
+
+Wired Tiger.
+Decide which blocks are in memory or disk
+Is not the default.
+1. Document level concurrency, is a lock free implementation with optimistic locking
+    If that happens the next need to retry again.
+2. Compression both of documents and indexes. Compress in disk not in memory
+3. Can not open the files created by MMAP
+
+mongod -dbpath WT -storageEngine wiredTiger
+db.collection.stats("wiredTiger")
+
+
+Indexes.
+TABLE_SCAN dead on performance.
+Index. Order set of things. More order ins better for searching, using binary search LogO2 (Btree)
+Multiple index, need to use the left more thing.
+(a, b, c)
+a           OK
+a, b        OK
+a, b, c     OK
+c           NO
+c, b        NO
+a, c        NO
+Index slow your writes, disk space to maintain the indexes.
+Reads makes faster
+
+db.collection.explain().find( WHERE );
+    Tell me what indexes I used.
+    [winningPlan] -- COLLSCAN -- scan all the documents.
+                  -- IXSCAN -- display name of
+
+db.collection.explain(true).find( WHERE );
+    Tell us the number of records examined
+    [executionStats]
+                    --      executionTimesMillisEstimate
+                    --      docsExamined
+                    --      nReturned
+
+db.collection.createIndex({ field : ASC|DEC (1|-1)});
+db.collection.createIndex({ field : ASC|DEC (1|-1) ,  field2 : ASC|DEC (1|-1)}  );
+
+db.collection.getIndexes() //3.0  MMAP and wiredTiger
+db.collection.dropIndex({ field : ASC|DEC (1|-1)}), same expression that create it.
+
+
+//MultiKey Indexes.  (isMultikey)
+{ name, tags[], color, red[]}
+When one of the keys is array.
+You can not have indexes with more than one array (no parallel array, cartesian product)
+db.foo.insert({a:1, b:1})                   isMultikey false
+db.foo.createIndex({a:1, b:1})              isMultikey false
+db.foo.insert({a:1, b:[3,5,7])              isMultikey true
+db.foo.insert({a:[3,4,6], b:[3,5,7])        Cannot index parallel arrays [b] [a]
+db.foo.insert({a:[3,4,6], b:8)              isMultikey true ,LEGAL only one can be array
+
+//DOT notation and multikey
+Index something in a subdocument.
+db.collection.createIndex({' collection.property' : 1|-1 })
+$elementMatch : { type : 'exam ' }    <-- Only one element, sometimes the $and is not enough in subdocuments.
+
+//UNIQUE index
+db.collection.createIndex({ field : ASC|DEC (1|-1)}, {unique : true });
+Sometimes you could not create if you have duplicated.
+
+//SPARSE index
+Index can be use, when index key is missing from the document.
+if you create an index, if the key is not present will have null, so that is duplicate
+If don't have value dont be indexed with sparse
+db.collection.createIndex({ field : ASC|DEC (1|-1)}, {unique : true, sparse: true });
+Some entries missing, if you use this sorting for sort, you will omit records, so full scan is being done.
+
+//Create index
+Foreground
+    1. relatively fast
+    2. blocks are writers and readers in the database in the collection exists.
+    3. not in production system
+
+Background --- db.foo.createIndex({a:1, b:1}, {background : true})
+    1. slow
+    2. don't block readers and writers
+
+//EXPLAIN
+Use to know what database is doing with your query.
+Sometimes don't bring data, is not entire simulation
+db.collection.find().explain();  /// before 3.0
+db.collection.explain()  <-- Explain object.
+                    .find, .update, .remove, .aggregate, .help     YES
+                    .insert                                         NO
+
+var exp = db.collection.explain();
+exp.help();
+exp.explain().find(WHERE).sort(SORT)
+exp.find(WHERE).sort(SORT).explain() < --- v3.0, as some of them does not return explainable object.
+ "[queryPlanner]"  -- Tell us what indexes the query will use
+ "[executionStats]"  --- Indexes and what happens -- exp.explain("executionStats")
+                   nReturned
+                   executionTimeMillis
+                   totalKeysExamined
+                   totalDocsExamined
+                   stages ....  bottom to top.
+ "[allPlansExecutions]" --- Run in parallel and select what is faster, and always use  -- exp.explain("allPlansExecutions")
+If an index is not using, you are wasting time, index in your collection should be used in the queries
+
+
+Covered Queries
+Query, where the query itself can be satisfied entirely by the index.
+ As per the official MongoDB documentation, a covered query is a query in which:
+    all the fields in the query are part of an index and
+    all the fields returned in the query are in the same index, you should use projections to eliminate fields not in index
+    totalKeyExamined = nReturned
+    totalDocsExamined = 0  <-- Covered query.
+    PROJECTIONS
+    A possibility that makes a full search, keys not included as a projections
+    !!Remember the order in the index, should start with the first key in multikey
+
+Chosing and index.
+Mongo choose candidate indexes, mongo create query plan, create thread for each candidate.
+Mongo cache which query plan will use, query plan can evict the plan in
+        1. threshold writes
+        2. rebuild indexes
+        3. add/removes
+        3. restart
+
+Index sizes.
+Working set in memory, the data that client is access, performances decreseas per IO ops
+indexes size = amount of memory needed, take in consideration to fit memory
+db.collection.stats()
+db.collection.totalIndexSize()
+In wiredTiger we can enable --wireTiferIndexPrefixCompression, reduce size of index
+
+Index cardinality
+Regular <-- A regular key is index point, 1:1 , proportional to collection size +1 null
+Sparse <-- <= number of documents.
+Multikey <-- An index point of arrays, > documents
+Every single index point need to be updated in the index collection
+
+Geospatial Indexes
+Search based on location, "location":[x,y]
+2 dimensional model --
+    ensureIndex{"location": "2d", "type": 1}
+    find({"location": {$near : [x,y] }}).limit(20);
+3 dimensional model -- spherical
+    Latitude -90 a 90 , Longitude
+    GEOJSON format
+        "location": {"type" : "Point",
+                     "coordinates" : { -112 , 37}
+                    }
+        ensureIndex{"location": "2dsphere", "type": 1}
+        find({"location": {$near : {$geometry : { type : "Point", coordinates: [long, lat], $maxDistance:200}}}})
+
+//Text indexes.
+Full text search index, queries into the text, one or several word.
+ensureIndex({"words" : "text"})
+find({$text : {$search : "dog "}});  // case insensitive
+find({$text : {$search : "dog tree o"}}, {score : {$meta : "textScore"}}).sort({score:{$meta:"textScore}});  <-- best match
+
+//Design-Using indexes.
+Goal: Efficient Read / Write operations
+- Selectivity - Minimize the records scanned
+- How sorts are handled.
+- Generally speaking the order in mulitkey index makes sense
+- Sort in the database
+Equality >> Sort >>> Range
+.hint(PARTICULAR_INDEX_TO_USE)
+
+//Profiling
+    LOG_SLOW queries -- Logging
+    0   default, is OFF
+    1   log my slow queries
+    2   log all my queries -- debugging feature
+    mongod --profile 1 --slowms 2
+    db.system.profile.find().pretty()
+    db.system.profile.find({ns:/test/foo/}).sort({ts:1}).pretty();
+                        //collection on spy
+    db.system.profile.find({millis:{$gt:1}}).sort({ts:1}).pretty();
+    db.getProfilingLevel()
+    db.getProfilingStatus()
+    db.setProfilingLevel(1,4) <-- level and milis
+    db.setProfilingLevel(0) <-- turn off
+
+
+//Mongo stat command
+Performance tunning command similiar to the iostat
+1 second and tell us what is happening.
+$mongostat
+insert query update delete getMore(cursor)
+                            command
+                            flushes (disk)
+                            mmaped
+                            vsize
+                            res
+                            faults (slow database(
+WiredTiger
+    %dirty  cache of wiredtiger
+    %used   used
+
+mongotop.
+Give you how mongo is using the time.
+#mongotop #sec
+
+
+db.students.createIndex({ "class" : 1 , "student_name" : 1}  );         <-- QUIZ
+db.people.createIndex({'work_history.company' : -1 })                   <-- QUIZ
+db.students.createIndex({ student_id : 1, class_id : 1 }, {unique : true });        <-- QUIZ
+db.places.find({"location": {$near : [74,140] }}).limit(3); <-- QUIZ
+db.stores.find({"loc": {$near : {$geometry : { type : "Point", coordinates: [-130,39]}, $maxDistance:1000000}}}) <-- QUIZ
+db.system.profile.find({millis:{$gt:1000}}).sort({ts:-1})               <-- QUIZ
+
+HW1.
+> db.posts.createIndex({date:-1})
+db.posts.createIndex({permalink:1})
+db.posts.createIndex({tags:1, date:-1})
