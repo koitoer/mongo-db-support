@@ -1,0 +1,222 @@
+Aggregation fwk.
+
+db.collection.aggregate([   <-- We start with and array
+    { $group : { _id: "$keytoAggregate",
+                 other_projection: {$sum : 1 }
+                }
+    }   <-- This is a document
+]);
+
+
+Aggregation Pipeline (aggregate([PIPELINE]) )
+Collection -> $project -> $match -> $group -> $sort -> Result
+
+$project --  reshape the document, select some fields -- 1:1
+$match --   filtering step, only the document you want to use -- N:1
+$group --   aggregate, you could use sum, count --- N:1
+$sort --    sorting --- 1:1
+$skip --    skips number of records --- N:1
+$limit --   limit the number of records -- N:1
+$unwind --  normalize data as tags : ["1","a", "c"] ... tags:1, tags:a, tags:c, explotion of dat--- 1:N
+$out --     taking the ouput of aggregation -- 1:1
+$redact
+$geonear
+
+
+Group by multiple keys.
+select a, b, count(*) from p group by a, b
+Compound id : _id: {"manufacter":"$manufacturer", category:"category"}
+              _id: {"manufacter":"$manufacturer"}
+
+
+Aggregation expression use in the $group
+
+$sum, add every time you find the key, sum a normal number or a specific field
+        db.products.aggregate([
+            { $group : { _id: "$key",  sum_prices: {$sum : $price } } }
+        ]);
+$avg, average for each key
+        db.products.aggregate([
+            { $group : { _id: "$key",  avg_prices: {$avg : $price } } }
+        ]);
+
+$addtoSet, create new key in the result and add any property that we choose, group and create and array
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$addToSet : $category } } }
+        ]);
+        _id: XXX,  categories:[a,b,c]
+
+$push, add item several times if are more than one
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$push : $category } } }
+        ]);
+        _id: XXX,  categories:[a,a,a,a,b,c]
+
+$min
+$max
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$max : $price } } }
+        ]);
+
+
+//Double grouping, add more than one aggregation stage
+db.fun.aggregate([{$group:{_id:{a:"$a", b:"$b"}, c:{$max:"$c"}}},
+                  {$group:{_id:"$_id.a", c:{$min:"$c"}}}])
+
+
+$first, require first to sort the documents
+$last, require first to sort the documents
+
+
+$PROJECT, (SELECT)
+    remove keys, add new keys, reshape keys, use functions on keys ($toUpper, $toLower, $add, $multiply)
+    db.products.aggregate([
+        { $project : { _id: 0, [0/1] <-- depending if visible or not
+                        'maker' : { $toLower: "$manufacturer"},
+                        'details: { 'category': "$category",
+                                    'price' : {$multiply : ["$price" , 10 ]}
+                                  },
+                        'item':"$name'
+                     }
+        }
+    ]);
+
+$MATCH, (WHERE, HAVING)
+    perform a filter, go each one and filter.
+    db.zips.aggregate([
+        { $match : {
+                    state:"CA"
+                   }
+        },
+        { $group : {
+                    _id:"$city",
+                    population: { $sum : "$pop"},
+                    zip_codes: {$addToSet : "_id"}
+                  }
+         },
+        { $project: {
+                    _id:0
+                     city: "$_id",
+                     population:1
+                     zip_codes:1
+                    }
+        }
+    ]);
+
+$SORT (ORDER BY)
+    disk and memory based sorting, by default in memory will be 100MB the max
+    before or after the grouping stage
+
+    db.zips.aggregate([
+        { $match : {
+                    state:"CA"
+                   }
+        },
+        { $group : {
+                    _id:"$city",
+                    population: { $sum : "$pop"},
+                    zip_codes: {$addToSet : "_id"}
+                  }
+         },
+        { $project: {
+                    _id:0
+                     city: "$_id",
+                     population:1
+                     zip_codes:1
+                    }
+        },
+        { $sort : {
+                    population : -1
+                  }
+        }
+    ]);
+
+$SKIP AND $LIMIT (LIMIT(
+    good practice is first sort, then skip and finally limit.
+    { $skip : 10},
+    { $limit : 1}
+
+$FIRST AND $LAST
+    first or last value of each group, after the sort phase
+    {
+       $group:{
+                _id: "$id.state",
+                city: {$first: "$id_city"}
+              }
+    }
+
+$UNWIND
+    move out array form and we unwind to unjoin the data, and rejoin in a way that is useful
+    {a:1, c: ["apple", "pear", "orange"]} ---
+                {a:1, c: "apple"} .. {a:1, c: "pear"} .. {a:1, c: "orange"}
+
+Double $UNWIND, if you have more than one array
+$push operator, could reverse the effect for unwind and double unwind
+
+
+
+//Limitations of the aggregation fwk.
+- 100 MB limit for pipeline stages, but we can use allowDiskUse, otherwise you will be limited in the stages
+- 16 MB limit by default in python. but we can return cursors.
+- sharding, in a sharding system as soon as you check, if you group or other thing that you need to look up the entire
+    collection you will move all the data to one shard, so can be moved there, so performance and scalability not works
+    well, option is use Hadoop-Map/reduce
+
+
+
+
+
+
+
+
+db.products.aggregate([
+    { $group : { _id: "$category",  num_products: {$sum : 1 } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  population: {$sum : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  population: {$avg : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$city",  postal_codes: {$addToSet : "$_id" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  pop: {$max : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+        { $project : { _id: 0,
+                       city : { $toLower: "$city"},
+                        pop : 1,
+                        state : 1,
+                        zip:"$_id"
+                     }
+        }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+        { $match : {
+                    pop : {$gt : 100000}
+                   }
+}]);    <--- QUIZ
+
+db.zips.aggregate([
+        { $sort : {
+                    state : 1,
+                    city: 1
+                   }
+}]);    <--- QUIZ
+
+
+
+        db.posts.aggregate([
+            {$unwind : "$comments"},
+            {$group : { _id: "$comments.author",  num_comments: {$sum : 1 } } },
+            {$sort : { num_comments : -1}},
+            {$limit : 1}
+        ]);
