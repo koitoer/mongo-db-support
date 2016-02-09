@@ -256,7 +256,17 @@ db.zips.aggregate([
     ]);
     
      HW5.4
-    
+     db.zips.aggregate([
+	   {$project: 
+	     { first_char: {$substr : ["$city",0,1]} , city: 1, pop: 1, zip:"$_id"}	 
+	   },
+	   {
+	     $match : { first_char : {$regex:/\d/} }
+	   },
+	   {
+	    $group : {_id: null, sum : {$sum : "$pop" }}
+	   }
+	]);
         
         
         
