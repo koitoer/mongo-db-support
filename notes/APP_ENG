@@ -49,4 +49,38 @@ A copy of the oplog is kept on both the primary and secondary servers.
 The oplog is implemented as a capped collection.
 
 Failover can result in a Rollback, if the primary goes down and not replicate the informations to the nodes.
+Read preference, by default is over the primary node
+You can read from the secondary with read preference, Primary (DEF), 
+    Primary Prefered, Secondary (SEC only) - eventually consisted read, Secondary Prefere (SEC y PRM), Nearest (15 ms)
+    
+    read_preference = ReadPreference.SECONDARY
+    
+Implications of replication.
+. Seeds Lists -- Drivers need to know at least one member of the replicaSet
+. Write Concern -- Wait for the ACK in w/j parameters, time the write takes to replicate.
+. Read preferences -- What option you will chose, and have support for steal data if that makes the case
+. Errors can happen -- Network errors, checking for exception in R/W
+
+
+SHARDING
+Auto scalability, handle scaling out.
+Collection wil be splitted in different mongo instances, for large collections
+Shards also have replicaSet, 3 host on a shard, queries get distributed via the mongos
+mongos is a router that keep the distribution of the collection in the sharding, we need to have range based approach with shard key
+chunks lives in a particular shard, mongos talk with replicaSet and scatter the request , could be more than one mongoS is stateless
+If you define a shar key all documents in the collection should have the shard key
+Collections not shared are stored in Shard0
+
+Building a sharding environment.
+Mongos 27017
+repicaSet0
+repicaSet1
+repicaSet2
+config1
+config2
+
+         CHUNK
+Range bash -- Hash based
+
+
 
