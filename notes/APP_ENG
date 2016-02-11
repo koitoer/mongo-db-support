@@ -76,11 +76,31 @@ Mongos 27017
 repicaSet0
 repicaSet1
 repicaSet2
+config0
 config1
 config2
+mongos
 
          CHUNK
 Range bash -- Hash based
 
 
+Implications of sharding
+Every document now, include the shard key
+Shard key is immutable
+Index that start with the shard key, could be a multiple index.
+No shard key, ... seak in all the shards
+No unique key, unless is part of the shard key, indexes are in each shard, so unique dont work as index dont know the entire collection
 
+What index would be required to allow MongoDB to shard on zip code?
+An index on zip or a non-multi-key index that starts with zip. 
+
+
+Sharding+replication
+Are always done together, mongos could have acces sto primaries and secondaries.
+Stil the concern of th write concern and j,w, and w_timeout
+We can have more than one mongos process but drivers shoudl support that. This be made due to failover in that part.
+
+Choosing a shard key
+1. Sufficient cardinality, sufficient to be a proper key, we can resolve that adding more fields to the shard
+2. Avoid hotspotting, multitenant increasing  $minkey --- , $maxkey, a problem if always write to the last shard.
