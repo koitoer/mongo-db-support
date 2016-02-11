@@ -220,3 +220,53 @@ db.zips.aggregate([
             {$sort : { num_comments : -1}},
             {$limit : 1}
         ]);
+        
+        
+         db.zips.aggregate([
+        { $match : { 
+					$and : [ 
+						{state: { $in : ["CA", "NY"]}},
+						{pop:{$gt : 25000}}
+						]
+                   }
+        },
+		{ $group : {
+                    _id:null,
+                    population: { $avg : "$pop"}
+                  }
+        }
+		])
+		
+        db.zips.aggregate([
+            { $match: {$or: [ {state: "CA"}, {state: "NY"} ] } },
+            { $group: { _id: { city: "$city" }, pop: { $sum: "$pop" } } },
+            { $match: { "pop": { $gt: 25000 } } },
+            { $group: { _id: null, avg_pop_of_city: { $avg: "$pop" } } }
+        ])
+        { "_id" : null, "avg_pop_of_city" : 44804.782608695656 }
+        
+        
+        HW5.3
+            db.grades.aggregate([
+            { $unwind: '$scores' },
+            { $match : { $nor : [ { "scores.type" : 'quiz'} ]}},
+            { $group: { _id: {  student_id : "$student_id" , class: "$class_id" } , avg_per_class_per_std  : {$avg : '$scores.score'} } },
+            { $group: { _id: "$_id.class" , avg_per_class  : {$avg : '$avg_per_class_per_std'} } },
+            { $sort : { avg_per_class : -1 }}
+    ]);
+    
+     HW5.4
+     db.zips.aggregate([
+	   {$project: 
+	     { first_char: {$substr : ["$city",0,1]} , city: 1, pop: 1, zip:"$_id"}	 
+	   },
+	   {
+	     $match : { first_char : {$regex:/\d/} }
+	   },
+	   {
+	    $group : {_id: null, sum : {$sum : "$pop" }}
+	   }
+	]);
+        
+        
+        
