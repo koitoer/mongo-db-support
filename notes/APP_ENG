@@ -1,0 +1,52 @@
+Write concerns
+Write process and Journal
+1  -- false  -- Fast, but small window of vulnerability
+1  -- true   -- Slow and vulnerability is remove
+0  -- T/F    -- Unacknowledge response.
+
+Network errors occurs.
+At TCP network connection between server and cliente
+MongoDB servers terminate between receiving the write and responding
+Fail of the ack in the communication.
+
+Replication is made by three mongo servers, there is one primary and secondaries nodes
+Replica set election is being made in the different types of node.
+Regular type node --   Has the data an can become primary, is a primary or secondary
+Arbitrer            -- Voting, can participate in elections
+Delayed/Regular     -- It is a disaster recovery node, some hours before the othere node, but NOT set as primary p=0
+Hidden              -- Such use as analysis. never the primary and p=0, can participate in elections
+
+Write consistency
+It is only a single in a replicate set, the writes go to the primary and read can go to secondaries.
+Strong consistency and avoid steal data if you R/W from the primary
+Replication is asynchronous so read from another nodes could be a problem, but will scale the system
+In the case of failover, you wont be able to perform any write
+Eventual consistency-- Someitmes you have consistency, this is not in the default option in mongo
+
+Create a replica set.
+mongod --replSet rs1 --logpath "1.log" --dbPath /data/rs1 --port 27017 --fork
+mongod --replSet rs1 --logpath "2.log" --dbPath /data/rs2 --port 27018 --fork
+mongod --replSet rs1 --logpath "3.log" --dbPath /data/rs3 --port 27019 --fork
+
+mongoshell $
+config = { _id:"rs1" , members [{_id: , host , priority, slaveDelay },{_id: , host }]}
+rs.initiate(config)
+rs.status()  <-- Give status of replica set
+rs.slaveOk() <-- OK to read from secondary
+rs.stepDown() <- Stop the process
+
+oplog is reading from the primary, and apply the operations to the secondary, secondaries also can read from another
+    secondary nodes
+    use local
+    show collections
+    db.oplog.rs.find()  --- optimeDate
+
+    oplog longest during the time that we suppose to communicate, also the size of the file.
+    If is possible to do upgrades, in different mixed storage types, as wiredTiger.
+
+Replication supports mixed-mode storage engines. For examples, a mmapv1 primary and wiredTiger secondary.
+A copy of the oplog is kept on both the primary and secondary servers.
+The oplog is implemented as a capped collection.
+
+Failover can result in a Rollback, if the primary goes down and not replicate the informations to the nodes.
+
