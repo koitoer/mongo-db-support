@@ -1,0 +1,12 @@
+ObjectId is formed by 12 bytes, normally called _id
+4 bytes - Timestamp | 3 bytes - Machine | 2 bytes - Process | 3 bytes - Increments.
+
+mongorc.js , it is a script that run every time we access mongo instance
+
+$mongo script1.js script2.js  <-- This allow to run multiple scripts within mongo.
+$mongo --quiet                  <-- Option to prevent banners.
+
+use foo         ---             db.getSisterDB("foo")
+show dbs        ---             db.getMongo().getDbs()
+show collections---             db.getCollectionNames();
+db.version      ---             db.getCollection("version")

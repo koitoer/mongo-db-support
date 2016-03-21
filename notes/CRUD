@@ -1,10 +1,22 @@
 Create  -   Insert  -   Insert
-Read    -   Find   -   Select
+Read    -   Find    -   Select
 Update  -   Update  -   Update
 Delete  -   Remove  -   Delete
 
 CRUD operations exist as a methods functions in programming language API's, not a SQL language
 Operation code transmitted as a series of bytes over the network, with a protocol.
+
+Insert ------
+    db.collection.insert(
+        <document or array of documents>,
+        {
+            writeConcern: <document>,
+            ordered: <boolean>         <--- if true and error not process the next one
+        }
+    );
+
+    db.foo.insert({ document });
+    db.foo.insert([ { document1 } ,  { document2 } , { document3 } ]);  <-- Bulk insert.
 
 $mongo -->  Command to connect with mongo.
 $help   --> A list of topics
@@ -32,6 +44,7 @@ db.people.findOne() <-- One document random at the collection
 db.people.findOne().pretty() <-- More readable
 db.people.findOne({ CRITERIA }) <-- Analogous to the WHERE clause
 db.people.findOne({ "name" : "Jones" }) <-- Find One with criteria
+db.people.findOne({ "name" : { "$ne" : "Jones" }}) <-- Find One with criteria, not EQUALS $ne
 db.people.findOne({ CRITERIA }, { FIELDS }) <-- What fields should come back
 db.people.findOne({ "name" : "Jones" }, { "name": true, "_id" : false })
 
@@ -45,7 +58,8 @@ for(i=0; i<1000; i++) {
 
 db.people.findOne({ CRITERIA1, CRITERIA2 }, { FIELDS }) <-- What fields should come back
 db.scores.findOne({ "student" : 19 , type : "essay"})
-db.scores.findOne({ "student" : 19 , type : "essay"}, { ""score": true, "_id" : false })
+db.scores.findOne({ "student" : 19 , type : "essay"}, { "score": 1, "_id" : 0 })
+db.scores.findOne({ "student" : 19 , type : "essay"}, { "score": true, "_id" : false })
 db.scores.find({ "score" : 50 , type : "essay"}, { "student": true, "_id" : false })
 db.scores.count()
 
@@ -53,7 +67,7 @@ Query by example queries.
 db.scores.find({ "score" : { $gt : 95 }}) <-- Conditional in a property
 db.scores.find({ "score" : { $gt : 95 },  type: "essay" })
 db.scores.find({ "score" : { $gt : 95, $lte : 98 },  type: "essay" })
-$gte, $lte
+$gte, $lte, $lt, $gt
 UTF representation of the string. Not cross data type boundaries.
 
 
@@ -62,6 +76,7 @@ db.people.find({ profession : { $exists : true}});
 //Base on the type of particular field // Numerical code in BSON
 db.people.find({ name : { $type : 2 }});
 //Support for string patterns with regex, can not be optimized
+//Follow Perl Compatible Regular Expression (PCRE)
 db.people.find({ name : { $regex : "a" }}); <-- Find where name contains "a"
 db.people.find({ name : { $regex : "e$" }}); <-- End with letter "e"
 //Can be optimized, with no wildcards.
@@ -95,12 +110,29 @@ db.accounts.find({ favorites : "pretzels" }) <-- Check polymorphic between array
 db.accounts.find({ favorites : "beer" }) <-- Brings that have beer in the array
 db.accounts.find({ favorites : "beer" }, name : { $gt : "H" })
 //$all, matches any document that have ALL the specify elements in the array, use another array
-//does not import the order but need to match ALL
+//does not import the order but need to match ALL, order does not matter
 db.accounts.find({ favorites : { $all : ["pretzels", "beer"] }})
+//If you dont use $all, mongo will try to find the exact array, order matters
+db.accounts.find({ favorites :  ["pretzels", "beer"] })
+//If you want to search based on index
+db.accounts.find({ "favorites.1" :  "beer" })
 //$in, matches any of the values that are in the array
 db.accounts.find({ name : { $in : ["Howard", "John"] }}
+db.accounts.find({ name : { $in : ["Howard"] }})   ===  db.accounts.find({ name : "Howard" });
 db.accounts.find({ favorites : { $in : ["beer", "ice cream"] }}
+//$nin, matches all the values that are not in the array.
+//$not, useful with regular expression to retrieve all the opposite for the query
+db.users.find({"id_num" : { "$not" : {"$mod" : [5,1]}}});
+//$size is useful to find a array of certain size.
+db.accounts.find({ "favorites" :  { $size : 3 } })
+//$slice is used to retrieve a window of information
+db.blog.posts.findOne({CRITERIA}, {"comments": {$slice : 10}})   <-- Return first 10 comments
+db.blog.posts.findOne({CRITERIA}, {"comments": {$slice : -10}})  <-- Return last 10 comments
+db.blog.posts.findOne({CRITERIA}, {"comments": {$slice : [23, 10]}})   <-- Skip 23 elements and return 10, 24-33
+db.blog.posts.findOne({CRITERIA}, {"comments.$": 1 }})   <-- Return the first comment in the array for criteria
+db.test.find({"x" : { "$elementMatch" : {"$gt" : 10, "$lt": 20} }})  <-- Used to compare values one by one in array
 
+Conditional are always in the inner documents ($lt), and modifiers are always the key of outer document ($inc, $and, $or, $not)
 
 //Queries dot notation, document can nest.
 db.users.insert({name : "koitoer" , email : { work : "koitoer@ge.com" , personal : "koitoe@gmail.com"}});
@@ -133,15 +165,16 @@ db.scores.count({type : "exam"})
 db.people.update({ CRITERIA }, { REPLACEMENT}) <-- not change the ID, whole cell replacement.
 //1. Override any other values, whole set replacement.
 db.people.update({ name :  "Smith" },{ name : "Thompson", salary : 50000})
+
 //2. Modify only specific fields.
 db.people.update({ name :  "Smith" }, { $set : { age : 30 }}) <-- If don't exists will be created. ADD or MODIFY
 db.people.update({ name :  "Smith" }, { $inc : { age : 1 }})  <-- Increment if exist if no create with 1
 //Remove a field from a document
 db.people.update({ name :  "Jones" } , { $unset : {"profession" : 1 }}); <-- Remove properties not required
-//Manipulate arrays
+//Manipulate arrays. Arrays are zero-index based
 db.arrays.insert({_id : 0 , a : [1, 2, 3, 4]})
 db.arrays.update({_id : 0} , {$set : { "a.2" : 5 }}) <--- [1, 2, 5, 4] Modify the third element
-db.arrays.push({_id : 0} , {$push : { "a" : 6 }}) <--- [1, 2, 5, 4, 6] Add element at end of array
+db.arrays.push({_id : 0} , {$push : { "a" : 6 }}) <--- [1, 2, 5, 4, 6] Add element at end of array or create new array
 db.arrays.push({_id : 0} , {$pop : { "a" : 1 }}) <--- [1, 2, 5, 4 ] Remove one element at the end of array
 db.arrays.push({_id : 0} , {$pop : { "a" : -1 }}) <--- [2, 5, 4 ] Remove first element of the array
 db.arrays.push({_id : 0} , {$pushAll : { "a" : [7, 8, 9]}}) <--- [2, 5, 4, 7, 8, 9] Add all elements, could have duplicates
@@ -149,10 +182,12 @@ db.arrays.push({_id : 0} , {$pull: { "a" : 5 }}) <--- [2, 4, 7, 8, 9]  Remove th
 db.arrays.push({_id : 0} , {$pullAll: { "a" : [2, 4, 8] }}) <--- [7, 9]  Remove all the values.
 db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Add the value to the array
 db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Idempotent several times.
+
 //3. Upsert > Update or exist (Upsert create new values if no records match.)
 db.people.update({ name :  "George" }, { $set : { age : 40 }}, {upsert : true }) <-- Construct new element.
+
 //4. Multi-update ( {} <-- Match every document in the collection )
-db.people.update({ }, { $set : { title : "Dr" }} ) <-- Just one document in the collection, DEFAULT behavior
+db.people.update({ }, { $set : { title : "Dr" }} ) <-- Just first document in the collection matching, DEFAULT behavior
 db.people.update({ }, { $set : { title : "Dr" }}, {multi : true }) <-- Affect all of them
 //Update run in one thread, but could pause to let other operations to proceed. "YIELDING", MUTEX lock
 //Are not isolated transactions, affect, then yield and then pickup again.
@@ -164,9 +199,33 @@ db.people.remove({CRITERIA})
 db.people.remove({}) <-- All will be removed one by one. One by one update.
 db.people.remove({name : "Alice"}) <-- Remove with name alice, NOT need to use MULTI is automatically
 db.people.remove() <-- Not permitted
-db.people.drop({}) <-- Must faster that be one by one, also discard INDEXES
+db.people.drop({}) <-- Must faster that be one by one, also discard INDEXES and associated objects
 
 
+//FindAndModify
+ps = db.runCommand(
+    {"findAndModify":"processes",      //Collection to search
+    "query" : {"status" : "READY" },   //Criteria based to search
+    "sort"  : {"priority" : -1},       //
+    "update": { "$set" : {"status" : "RUNNING"} },     //Modifier document that be applied
+    "remove": true,                                    //Boolean to specify if document will be removed
+    "field" : {"status":1},                            //Field the query will return
+    "upsert": true                                     //Boolean to specify if document will be upsert
+    ).value
+
+
+WRITE CONCERN : Used to return and ACK/NO ACK when the operation insert is done
+Operation w=1 will return when primary node write the content.
+w=0 will still report issues in socket or protocol exceptions.
+{ w: <value>, j: <boolean>, wtimeout: <number> }
+
+
+
+
+
+
+
+/**** SECTION 1 - QUIZZES   ***/
 
 db.fruit.insert({"name":"apple", "color":"red", "shape":"round"}) <-- QUIZ
 db.users.findOne({ "username" : "dwight" }, { "email": true, "_id" : false}) <-- QUIZ
