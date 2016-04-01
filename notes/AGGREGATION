@@ -63,6 +63,7 @@ $avg, average for each key
             { $group : { _id: "$key",  avg_prices: {$avg : $price } } }
         ]);
 
+//Array operators.
 $addtoSet, create new key in the result and add any property that we choose, group and create and array
         db.products.aggregate([
             { $group : { _id: "$key",  categories: {$addToSet : $category } } }
@@ -81,6 +82,9 @@ $max
             { $group : { _id: "$key",  categories: {$max : $price } } }
         ]);
 
+//Grouping examples
+{"$group" : { "_id": "$day" }}  //Just one field
+{"$group" : { "_id": { "state" : "$state", "city" : $city" }}}
 
 //Double grouping, add more than one aggregation stage
 db.fun.aggregate([{$group:{_id:{a:"$a", b:"$b"}, c:{$max:"$c"}}},
@@ -90,6 +94,9 @@ db.fun.aggregate([{$group:{_id:{a:"$a", b:"$b"}, c:{$max:"$c"}}},
 $first, require first to sort the documents
 $last, require first to sort the documents
 
+//In case of the sharding, group need to go to each node and pull the information groupin in the mongos, based on this fact
+//The remaining of the pipeline will be execute in the mongos
+//this effect is called roadblock and also "$sort" has the same behaviour
 
 $PROJECT, (SELECT)
     remove keys, add new keys, reshape keys, use functions on keys ($toUpper, $toLower, $add, $multiply)
