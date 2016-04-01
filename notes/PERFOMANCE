@@ -7,6 +7,7 @@ the MMAP storage engine go to the disk and bring it.
 2. In place updates of documents
 3. Power of two sizes (3-4) (19-32) so collection can growth. Power of two document padding.
 4. Is built on top of the mmap system call that maps files into memory
+5. Implement index in btrees.
 
 Database engine have some algorithm to know what are in disk and what in memory.
 
@@ -18,6 +19,7 @@ Is not the default.
 2. Compression both of documents and indexes. Compress in disk not in memory
 3. No inplace updates, append only storage engines, allocate space in other section marked as not used.
 4. Can not open the files created by MMAP
+5. Implement index in b+trees
 
 mongod -dbpath WT -storageEngine wiredTiger
 db.collection.stats("wiredTiger")
@@ -26,14 +28,14 @@ db.collection.stats("wiredTiger")
 Indexes.
 TABLE_SCAN dead on performance.
 Index. Order set of things. More order ins better for searching, using binary search LogO2 (Btree)
-Multiple index, need to use the left more thing.
+Multiple index, need to use the left more thing. -- Compund indexes.
 (a, b, c)
 a           OK
 a, b        OK
 a, b, c     OK
 c           NO
 c, b        NO
-a, c        NO
+a, c        NO - PARTIAL
 Index slow your writes, disk space to maintain the indexes.
 Reads makes faster
 
@@ -54,6 +56,7 @@ db.collection.createIndex({ field : ASC|DEC (1|-1) ,  field2 : ASC|DEC (1|-1)}  
 
 db.collection.getIndexes() //3.0  MMAP and wiredTiger
 db.collection.dropIndex({ field : ASC|DEC (1|-1)}), same expression that create it.
+   { "nIndexesWas" : 3 ,  "ok" : 1 }
 
 
 //MultiKey Indexes.  (isMultikey)
@@ -65,32 +68,48 @@ db.foo.createIndex({a:1, b:1})              isMultikey false
 db.foo.insert({a:1, b:[3,5,7])              isMultikey true
 db.foo.insert({a:[3,4,6], b:[3,5,7])        Cannot index parallel arrays [b] [a]
 db.foo.insert({a:[3,4,6], b:8)              isMultikey true ,LEGAL only one can be array
+No more than one can be array, but at one time a OR b can be arrays, NOT boths
+Once is multikey always multikey.
 
 //DOT notation and multikey
 Index something in a subdocument.
-db.collection.createIndex({' collection.property' : 1|-1 })
-$elementMatch : { type : 'exam ' }    <-- Only one element, sometimes the $and is not enough in subdocuments.
+db.collection.createIndex({' subdocument.property' : 1|-1 })
+db.collection.find({ {'scores' : { $elemMatch : { type : XXX , score : ZZ }} }); -- document with match the at least the criteria
+$elemMatch : { type : 'exam ' }    <-- Only one element, sometimes the $and is not enough in subdocuments. used in arrays.
+The $elemMatch operator matches documents that contain an array field with at least one element that matches all the specified query criteria.
+If you usea $and could not match bot at the same time, first stage look for only one part and other filter stage for the others.
 
 //UNIQUE index
+keys have to be unique within the collection
 db.collection.createIndex({ field : ASC|DEC (1|-1)}, {unique : true });
-Sometimes you could not create if you have duplicated.
+Sometimes you could not create if you have duplicated. (Duplicated key error index)
 
 //SPARSE index
 Index can be use, when index key is missing from the document.
+Sparse, not include in the index documents which are missing the key.
+Advantage: The index will be smaller than it would if it were not sparse. (sparse used less space)
+Advantage: You can gain greater flexibility with creating Unique indexes.
 if you create an index, if the key is not present will have null, so that is duplicate
 If don't have value dont be indexed with sparse
 db.collection.createIndex({ field : ASC|DEC (1|-1)}, {unique : true, sparse: true });
 Some entries missing, if you use this sorting for sort, you will omit records, so full scan is being done.
+If there is sparse index, there are entry missings, so avoid to omit records will used a COLLSCAN
+Sparse can not be used by sorting
 
 //Create index
-Foreground
+Foreground (default)
     1. relatively fast
-    2. blocks are writers and readers in the database in the collection exists.
+    2. blocks are writers and readers in the DATABASE in the collection exists.
     3. not in production system
 
 Background --- db.foo.createIndex({a:1, b:1}, {background : true})
     1. slow
     2. don't block readers and writers
+Although the database server will continue to take requests, 
+     a background index creation still blocks the mongo shell that you are using to create the index    
+Creating an index in the background takes longer than creating it in the foreground    
+
+If you have replicaset, if primary create index, secondary begin the creation once primary index is completed.
 
 //EXPLAIN
 Use to know what database is doing with your query.
