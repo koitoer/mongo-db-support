@@ -4,8 +4,8 @@ the MMAP storage engine go to the disk and bring it.
 1. Collection Level Locking, multiple reader single writer on a particular collection
     In different collections will be this possible.
     Non offer document level locking.
-2. In place updates.
-3. Power of two sizes (3-4) (19-32) so collection can growth.
+2. In place updates of documents
+3. Power of two sizes (3-4) (19-32) so collection can growth. Power of two document padding.
 4. Is built on top of the mmap system call that maps files into memory
 
 Database engine have some algorithm to know what are in disk and what in memory.
@@ -16,7 +16,8 @@ Is not the default.
 1. Document level concurrency, is a lock free implementation with optimistic locking
     If that happens the next need to retry again.
 2. Compression both of documents and indexes. Compress in disk not in memory
-3. Can not open the files created by MMAP
+3. No inplace updates, append only storage engines, allocate space in other section marked as not used.
+4. Can not open the files created by MMAP
 
 mongod -dbpath WT -storageEngine wiredTiger
 db.collection.stats("wiredTiger")
