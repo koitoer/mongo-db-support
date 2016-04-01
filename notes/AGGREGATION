@@ -183,6 +183,9 @@ $UNWIND
 Double $UNWIND, if you have more than one array
 $push operator, could reverse the effect for unwind and double unwind
 
+//Aggregation commands.
+db.foo.count()
+db.runCommand({"distinct": collection, "key" : "valuetoDistinct" })
 
 
 //Limitations of the aggregation fwk.
