@@ -110,6 +110,15 @@ $PROJECT, (SELECT)
                      }
         }
     ]);
+    
+    //For nested documents
+    { _id: 1, user: "1234", stop: { title: "book1", author: "xyz", page: 32 } }
+    db.bookmarks.aggregate( [ { $project: { stop: { title: 1 } } } ] ) --- OK
+    db.bookmarks.aggregate( [ { $project: { "stop.title": 1 } } ] ) ------ OK
+
+    //For arrays.
+    db.collection.aggregate( [ { $project: { myArray: [ "$x", "$y", "$someField" ] } } ] 
+
 
 $MATCH, (WHERE, HAVING)
     perform a filter, go each one and filter.
