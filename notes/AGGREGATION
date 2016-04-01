@@ -1,4 +1,9 @@
 Aggregation fwk.
+Transform and combine documents in a collection.
+Pipeline that have several building blocks.
+.aggregate returns an array of result documents
+16MB of data.
+
 
 db.collection.aggregate([   <-- We start with and array
     { $group : { _id: "$keytoAggregate",
@@ -11,8 +16,8 @@ db.collection.aggregate([   <-- We start with and array
 Aggregation Pipeline (aggregate([PIPELINE]) )
 Collection -> $project -> $match -> $group -> $sort -> Result
 
-$project --  reshape the document, select some fields -- 1:1
-$match --   filtering step, only the document you want to use -- N:1
+$project --  reshape the document, select some fields, extract fields from subdocument -- 1:1 ("$fieldname")
+$match --   filtering step, only the document you want to use -- N:1 ($gt, $lt, $in), good first as reduce set and use indexes
 $group --   aggregate, you could use sum, count --- N:1
 $sort --    sorting --- 1:1
 $skip --    skips number of records --- N:1
@@ -21,6 +26,24 @@ $unwind --  normalize data as tags : ["1","a", "c"] ... tags:1, tags:a, tags:c, 
 $out --     taking the ouput of aggregation -- 1:1
 $redact
 $geonear
+
+PROJECTION EXPRESSIONS
+
+Mathematical expressions (numeric values)
+"$add" : [expr1, expr2, ... exprN]
+"$substract" : [expr1, expr2]
+"$multiply"
+"$divide" : [expr1, expr2]
+"$mod" : [expr1, expr2]
+
+Date expression (date values)
+"$year", "$month", "$week", "$dayOfMonth", "$dayOfWeek", "$dayOfYear", "$hour", "$minute", "$second"
+
+String expressions (string values)
+"$substr", "$concat", "$toLower", "$toUpper"
+
+Logical
+"$cmp", "$strcasecmp", "$eq/$ne/$lt/$gt", "$and", "$or", "$nor", "$cond : [booleanExpr, trueExpr, falseExpr] ", "$ifNull"
 
 
 Group by multiple keys.
