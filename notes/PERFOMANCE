@@ -112,27 +112,36 @@ Creating an index in the background takes longer than creating it in the foregro
 If you have replicaset, if primary create index, secondary begin the creation once primary index is completed.
 
 //EXPLAIN
-Use to know what database is doing with your query.
+Use to know what database is doing with your query. what indexes are used and documents are inspected.
 Sometimes don't bring data, is not entire simulation
 db.collection.find().explain();  /// before 3.0
-db.collection.explain()  <-- Explain object.
-                    .find, .update, .remove, .aggregate, .help     YES
-                    .insert                                         NO
+db.collection.explain()  <-- Explainable object is returned here
+                    .find, .update, .remove, .aggregate, .help, .count, .group, .setVerbosity       YES
+                    .insert                                                                         NO
 
 var exp = db.collection.explain();
 exp.help();
-exp.explain().find(WHERE).sort(SORT)
+exp.explain().find(WHERE).sort(SORT) <--- This is the ideal form to call the explain
 exp.find(WHERE).sort(SORT).explain() < --- v3.0, as some of them does not return explainable object.
- "[queryPlanner]"  -- Tell us what indexes the query will use
- "[executionStats]"  --- Indexes and what happens -- exp.explain("executionStats")
+                                            ex. count().explain();   OR remove.explain()
+
+MODES
+ "[queryPlanner]"  -- Tell us what indexes the query will use  (default)
+ "[executionStats]"  --- Indexes and what happens -- exp.explain("executionStats"), execution plan for the winning plan
                    nReturned
                    executionTimeMillis
                    totalKeysExamined
                    totalDocsExamined
                    stages ....  bottom to top.
- "[allPlansExecutions]" --- Run in parallel and select what is faster, and always use  -- exp.explain("allPlansExecutions")
+ "[allPlansExecutions]" --- Run in parallel with all the indexes and select what is faster, and always use the faster
+                        -- exp.explain("allPlansExecutions")
 If an index is not using, you are wasting time, index in your collection should be used in the queries
-
+"winningPlan"
+"rejectedPlans"
+var cursor = db.collection.find({WHERE})..
+cursor.next() <-- get the results
+cursor.explain();
+                                                                inputStage --> stages --> ....
 
 Covered Queries
 Query, where the query itself can be satisfied entirely by the index.
@@ -144,25 +153,28 @@ Query, where the query itself can be satisfied entirely by the index.
     PROJECTIONS
     A possibility that makes a full search, keys not included as a projections
     !!Remember the order in the index, should start with the first key in multikey
+    the projection need to be the same as the query to be covered, and id suppressed.
+    if index i,j,k we need projection _id0, i1,j1,k1.  If we use _id0 not covered, _id0 + i1 + j1 not covered
 
-Chosing and index.
+Choosing and index.
 Mongo choose candidate indexes, mongo create query plan, create thread for each candidate.
 Mongo cache which query plan will use, query plan can evict the plan in
-        1. threshold writes
+        1. threshold writes, number of writes to erase ache
         2. rebuild indexes
         3. add/removes
         3. restart
 
 Index sizes.
-Working set in memory, the data that client is access, performances decreseas per IO ops
+Important that indexes fits in memory
+Working set in memory, the data that client is access, performances decreases per IO ops
 indexes size = amount of memory needed, take in consideration to fit memory
-db.collection.stats()
+db.collection.stats()... have some indexSizes property that tell us the size of the indexes.
 db.collection.totalIndexSize()
-In wiredTiger we can enable --wireTiferIndexPrefixCompression, reduce size of index
+In wiredTiger we can enable --wireTigerIndexPrefixCompression, reduce size of index
 
 Index cardinality
 Regular <-- A regular key is index point, 1:1 , proportional to collection size +1 null
-Sparse <-- <= number of documents.
+Sparse <-- <= number of documents., not null in the indexes.
 Multikey <-- An index point of arrays, > documents
 Every single index point need to be updated in the index collection
 
