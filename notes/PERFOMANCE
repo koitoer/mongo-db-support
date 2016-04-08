@@ -181,7 +181,7 @@ Every single index point need to be updated in the index collection
 Geospatial Indexes
 Search based on location, "location":[x,y]
 2 dimensional model --
-    ensureIndex{"location": "2d", "type": 1}
+    ensureIndex{"location": "2d", "type": 1} //// location:2d is the important part.
     find({"location": {$near : [x,y] }}).limit(20);
 3 dimensional model -- spherical
     Latitude -90 a 90 , Longitude
