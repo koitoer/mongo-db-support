@@ -89,7 +89,7 @@ Implications of replication.
 . Errors can happen -- Network errors, checking for exception in R/W, failovers, unique key constrants.
 
 
-SHARDING
+BUILDING SHARDING ENVIRONMENTS.  -------------------------------
 Auto scalability, handle scaling out.
 Collection wil be splitted in different mongo instances, for large collections
 Hash based sharding or range based approach.
@@ -99,6 +99,10 @@ chunks lives in a particular shard, mongos talk with replicaSet and scatter the 
 If you define a shar key all documents in the collection must have the shard key
 Collections not shared are stored in Shard0
 Once you have shard and replica you dont connect anymore to the mongo instances, you use the mongos
+3 REPLICAset with 3 servers with 3 config servers
+Config servers tell us how the collection is distribuited in the shards
+Config servers makes two-phase commits in the write of the shards.
+Mongos talk to config servers
 
 Building a sharding environment.
 Mongos 27017
@@ -108,11 +112,12 @@ repicaSet2
 config0
 config1
 config2
-mongos
+mongos -- maintain connection with the shards
 
          CHUNK
-Range bash -- Hash based
-
+Range bash --- Hash based
+0...100 S1      hashing algorithm to the shard key
+100.199 S2
 
 Implications of sharding
 Every document now, include the shard key
@@ -129,7 +134,18 @@ Sharding+replication
 Are always done together, mongos could have acces sto primaries and secondaries.
 Stil the concern of th write concern and j,w, and w_timeout
 We can have more than one mongos process but drivers shoudl support that. This be made due to failover in that part.
+If you have several mongos, in case of failure the driver will be in charge the redundancy,
 
 Choosing a shard key
 1. Sufficient cardinality, sufficient to be a proper key, we can resolve that adding more fields to the shard
+   Need to have sufficient cardinality to have spread across the shards.
+   We can put a secondary part of the key
 2. Avoid hotspotting, multitenant increasing  $minkey --- , $maxkey, a problem if always write to the last shard.
+   Most of the dates have this hotspotting problems
+   You can not have a key in an array, you need and index, and array have multikey indexes and that is not allowed.
+
+
+db.adminCommand({enableSharding : true})
+db.adminCommand({shardCollection : "collection" , key : {collection_key});
+
+mongos  > sh.status();
