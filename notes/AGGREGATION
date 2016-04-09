@@ -4,13 +4,18 @@ Pipeline that have several building blocks.
 .aggregate returns an array of result documents
 16MB of data.
 
-
+Grouping
 db.collection.aggregate([   <-- We start with and array
     { $group : { _id: "$keytoAggregate",
                  other_projection: {$sum : 1 }
                 }
     }   <-- This is a document
 ]);
+
+Coumpoud grouping
+_id : { "p1" : "$columcollection1" ,  "index2" : "$column2" }
+Group around all the $collumns that you specified.
+You can insert coumpound key as follows : db.foo.insert({_id:{col1: "val1" , col2 : "val2" }})
 
 
 Aggregation Pipeline (aggregate([PIPELINE]) )
@@ -19,7 +24,7 @@ Collection -> $project -> $match -> $group -> $sort -> Result
 $project --  reshape the document, select some fields, extract fields from subdocument -- 1:1 ("$fieldname")
 $match --   filtering step, only the document you want to use -- N:1 ($gt, $lt, $in), good first as reduce set and use indexes
 $group --   aggregate, you could use sum, count --- N:1
-$sort --    sorting --- 1:1
+$sort --    sorting --- 1:1    ($first and $last)
 $skip --    skips number of records --- N:1
 $limit --   limit the number of records -- N:1
 $unwind --  normalize data as tags : ["1","a", "c"] ... tags:1, tags:a, tags:c, explotion of dat--- 1:N
