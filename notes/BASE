@@ -1,5 +1,6 @@
 ObjectId is formed by 12 bytes, normally called _id
 4 bytes - Timestamp | 3 bytes - Machine | 2 bytes - Process | 3 bytes - Increments.
+A special 12-byte BSON type that guarantees uniqueness within the collection
 
 mongorc.js , it is a script that run every time we access mongo instance
 
@@ -10,3 +11,32 @@ use foo         ---             db.getSisterDB("foo")
 show dbs        ---             db.getMongo().getDbs()
 show collections---             db.getCollectionNames();
 db.version      ---             db.getCollection("version")
+
+
+CAP Theorem
+    Given three properties of computing systems, consistency, availability, and partition tolerance, a
+    distributed computing system can provide any two of these features, but never all three
+
+cursor
+    A pointer to the result set of a query. Clients can iterate through a cursor to retrieve results.
+    By default, cursors timeout after 10 minutes of inactivity. See Cursors.
+
+
+JSON
+    Arrays []  ordered collection
+    Dictionary { keyword, value }
+
+
+Vertical scaling adds more CPU and storage resources to increase capacity ( Para arriba hace mas grande la maquina)
+Sharding, or horizontal scaling, by contrast, divides the data set and distributes the data over multiple servers,
+   or shards. (En el horizonte agrega mas maquinas)
+
+db.test.insert({"hola":"hola"})   OK   " "  OR ' ' in the same position
+db.test.insert({hola:"hola"})   OK
+db.test.insert({hola:hola})     NOT
+db.test.insert({"hola":hola})     NOT
+
+ db.test.find({},{'_id':0});        OK
+ db.test.find({},{'_id':false});    OK
+ db.test.find({},{'_id':"false"});  NOT
+

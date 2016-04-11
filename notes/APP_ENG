@@ -9,6 +9,14 @@ At TCP network connection between server and cliente
 MongoDB servers terminate between receiving the write and responding
 Fail of the ack in the communication.
 
+REPLICATION
+Is done through the oplog that save any write perform in the primary
+oplog is a capped collection stored in the local database.
+Other replica set members also keep its oplog to be possible sync from them
+Basically ask to the latest update from the last one you have.
+To initialize need to copy all the data, but is prefered to restore a backup as this will be faster
+Hearbeat request to let the replica set about existence, also to know if primary can reach majority of set.
+
 Replication is made by three mongo servers, there is one primary and secondaries nodes
 Replica set election is being made in the different types of node.
 Regular type node --   Has the data an can become primary, is a primary or secondary
@@ -64,14 +72,15 @@ w(number of nodes ack the write)        j                                       
 3
 majority <--- is a value when you use replica set.
 Connection, collection or replicaset
+You can create tags to make replicas in other facilities, to avoid a facility goes down
 
 
 Read preference, by default is over the primary node
 You can read from the secondary with read preference, 
     Primary (DEF), read from primary 
-    Primary Prefered, primary but if not Im fine with SEC
+    Primary Preferred, primary but if not Im fine with SEC
     Secondary (SEC only) - EVENTUALLY consistent read, rotate read of the secondary, not primary
-    Secondary Prefered (SEC y PRM), 
+    Secondary Preferred (SEC y PRM),
     Nearest (15 ms)
                 read_preference = ReadPreference.SECONDARY
 
@@ -89,7 +98,7 @@ Implications of replication.
 . Errors can happen -- Network errors, checking for exception in R/W, failovers, unique key constrants.
 
 
-BUILDING SHARDING ENVIRONMENTS.  -------------------------------
+SHARDING (sh command)
 Auto scalability, handle scaling out.
 Collection wil be splitted in different mongo instances, for large collections
 Hash based sharding or range based approach.
@@ -109,15 +118,15 @@ Mongos 27017
 repicaSet0
 repicaSet1
 repicaSet2
-config0
-config1
-config2
-mongos -- maintain connection with the shards
+config0  .--- Brain of the cluster, they hold all of the metada about which servers hold what data
+config1   --- Should be in different machine and preferable in geogrpahic distributed.
+config2   --- Starts first, in non-ephemeral stores, there anot part of replica set and ensure two phase commits.
+mongos
 
          CHUNK
 Range bash --- Hash based
 0...100 S1      hashing algorithm to the shard key
-100.199 S2
+100.199 S2      You can not do targeted queries, but is efficient for distribute writes
 
 Implications of sharding
 Every document now, include the shard key
@@ -125,6 +134,8 @@ Shard key is immutable
 Index that start with the shard key, could be a multiple index.
 No shard key, ... seak in all the shards
 No unique key, unless is part of the shard key, indexes are in each shard, so unique dont work as index dont know the entire collection
+Shard key can not be arrays.
+Geospational index does not allow sharding
 
 What index would be required to allow MongoDB to shard on zip code?
 An index on zip or a non-multi-key index that starts with zip. 
@@ -149,3 +160,61 @@ db.adminCommand({enableSharding : true})
 db.adminCommand({shardCollection : "collection" , key : {collection_key});
 
 mongos  > sh.status();
+
+sh.enableSharding("test")
+db.users.ensureIndex({"username" : 1})
+sh.shardCollection("test.users", {"username" :1});
+sh.status()
+
+To find all the data, you need to visit all the shards.  scatter--gather queries
+To find specific data and only visit a shard --- targeted queries
+
+
+SHARD on test
+cluster = new ShardingTest({"shards" : 3, "chunksize" : 1}):
+cluster.stop();
+
+1.include the shard key in the queries
+2.send to geographical closest
+Sharding for read or write thouhput
+Sharding to increase system resources
+
+Ascending shar key with the max proble,
+Randomly distributed shard keys
+Location based shard keys
+
+
+chunk
+    A contiguous range of shard key values within a particular shard.
+    Chunk ranges are inclusive of the lower boundary and exclusive of the upper boundary.
+    MongoDB splits chunks when they grow beyond the configured chunk size, which by default is 64 megabytes
+
+
+Splitting
+Splitting is a background process that keeps chunks from growing too large.
+When a chunk grows beyond a specified chunk size, MongoDB splits the chunk in half.
+Inserts and updates triggers splits. Splits are an efficient meta-data change. To create splits,
+MongoDB does not migrate any data or affect the shards.
+
+Balancing
+Run from mongoSS
+The balancer is a background process that manages chunk migrations. The balancer can run from any of the mongos
+instances in a cluster. When the distribution of a sharded collection in a cluster is uneven, the balancer process
+migrates chunks from the shard that has the largest number of chunks to the shard with the least number of chunks
+until the collection balances
+
+primary shard
+    The shard that holds all the un-sharded collections
+
+
+"Shards" store the data. To provide high availability and data consistency, in a production sharded cluster,
+each shard is a replica set
+
+"Query Routers, or mongos instances", interface with client applications and direct operations to the appropriate shard
+ or shards. A client sends requests to a mongos, which then routes the operations to the shards and returns
+ the results to the clients. A sharded cluster can contain more than one mongos to divide the client request load,
+ and most sharded clusters have more than one mongos for this reason.
+
+"Config servers" store the cluster’s metadata. This data contains a mapping of the cluster’s data set to the shards.
+The query router uses this metadata to target operations to specific shards.
+The metadata maps chunks to shards.

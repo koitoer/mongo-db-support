@@ -1,4 +1,5 @@
-RDS - Third normal form - Agnostic to the applications
+RDS - Third normal form - Agnostic to the application
+Single most important factor in design schema is Matching the data access patterns of your application
 MongoDB -Application - Driven Schema
     Read only / What are accessed more frequently
 
@@ -6,8 +7,10 @@ MongoDB -Application - Driven Schema
 2. No manage for joins
 3. Pre-join and/or embedded data  <-- Embed data in ways that makes sense to your application
 4. No constraints, no FK <-- Living without constraints, no guarantee that data is consistent between ids
+                             But keeping your data consistent even though mongo lacks foreign keys
                          <-- Embedded sometimes is the best way to guarantee that, that appears directly in
                                 the document
+
 5. Atomic operation, mongo don't support transactions.
                         <-- Living without transactions, but we have atomic operations
                         Atomicity
@@ -46,7 +49,8 @@ City-/Person
     . Use array of person in city wont work
     . Use people collection and embed the city <-- Duplication of data, could cause inconsistencies
     . True linking though the unique id of the other collection <-- Reference to city to people
-    . Requires to collection.
+    . Linking from the many to the one .... from People to City
+    . Requires two collection.
 
 (1-Few)
 BlogPosts-/Comments
@@ -60,6 +64,7 @@ Books/-/Authors
 
 Multikey indexes.
 db.collection.ensureIndexes. Useful when we have embedded data, to link and embed in efficient way when you query.
+
 Benefits of embedding.
     1. Improve read performance. <-- High latency on the disks/High bandwidth, collocated the data in the same sector
     2. One round trip to the DB.
@@ -88,6 +93,8 @@ MORPHIA ============================
 @Reference <-- Array of DBRef() , could be eager of lazy, not constraint of validated, no FK!!!
 @Transient <-- Don't save the property
 @Version <-- Add the version to the document
+
+
 
 
 <-- HW3.1 -->

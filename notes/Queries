@@ -1,0 +1,91 @@
+use wallet
+drop.dataDatabase();
+db.event.drop();
+
+db.event.insert({
+  "_class" : "com.koitoer.wallet.model.Event",
+  "user" : "koitoer",
+  "eventDate" : ISODate("2016-02-12T05:13:38.196Z"),
+  "eventType" : "Expenses",
+  "notes" : "RandomNotes",
+  "categoryList" : [ { "categoryName" : "cat1" } ],
+  "amount" : 10,
+  "extraAmount" : 12,
+  "totalAmount" : 22,
+  "paymentType" : {
+      "type" : "Credit",
+      "paymentReference" : "02"
+   },
+   "tags" : [ "Weekly", "Extras" ],
+   "place" : { "placeName" : "Walmart" }
+ });
+
+
+db.event.insert({
+  "_class" : "com.koitoer.wallet.model.Event",
+  "user" : "koitoer",
+  "eventDate" : ISODate("2016-03-12T05:13:38.196Z"),
+  "eventType" : "Expenses",
+  "notes" : "RandomNotes",
+  "categoryList" : [ { "categoryName" : "cat3" } ],
+  "amount" : 10,
+  "extraAmount" : 15,
+  "totalAmount" : 25,
+  "paymentType" : {
+      "type" : "Credit",
+      "paymentReference" : "02"
+   },
+   "tags" : [ "Weekly", "Extras" ],
+   "place" : { "placeName" : "Costco" }
+ });
+
+
+
+db.event.insert({
+  "_class" : "com.koitoer.wallet.model.Event",
+  "user" : "koitoer",
+  "eventDate" : ISODate("2016-03-14T05:13:38.196Z"),
+  "eventType" : "Expenses",
+  "notes" : "RandomNotes",
+  "categoryList" : [ { "categoryName" : "cat" } ],
+  "amount" : 0.00,
+  "extraAmount" : 15.00,
+  "totalAmount" : 15,
+  "paymentType" : {
+      "type" : "Credit",
+      "paymentReference" : "04"
+   },
+   "tags" : [ "Weekly", "Extras" ],
+   "place" : { "placeName" : "Safeway" }
+ });
+
+
+
+db.event.insert({
+  "_class" : "com.koitoer.wallet.model.Event",
+  "user" : "koitoer",
+  "eventDate" : ISODate("2016-03-14T05:13:38.196Z"),
+  "eventType" : "Expenses",
+  "notes" : "Notest",
+  "categoryList" : [ { "categoryName" : "cat4" } ],
+  "amount" : 0.00,
+  "extraAmount" : 5.00,
+  "totalAmount" : 5,
+  "paymentType" : {
+      "type" : "Credit",
+      "paymentReference" : "04"
+   },
+   "tags" : [ "Weekly", "Extras" ],
+   "place" : { "placeName" : "Safeway" }
+ },
+ { writeConcern: { w: "majority", wtimeout: 5000 }} );
+
+ db.event.update(
+    { name: "Andy" },
+    {
+       name: "Andy",
+       rating: 1,
+       score: 1
+    },
+    { upsert: true }
+ )

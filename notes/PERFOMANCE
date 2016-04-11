@@ -1,6 +1,8 @@
 MMAP
 Pages in memory space, that have certain size, if the page is not loaded in memory
-the MMAP storage engine go to the disk and bring it.
+the MMAP storage engine go to the disk and bring it. (On memory mapped files)
+Mongo store in the journal, in which it writes more frequently than the disk.
+Writes to journal roughly every 100 ms and mongo writes to the disk 60 sec.
 1. Collection Level Locking, multiple reader single writer on a particular collection
     In different collections will be this possible.
     Non offer document level locking.
@@ -191,12 +193,14 @@ Search based on location, "location":[x,y]
                     }
         ensureIndex{"location": "2dsphere", "type": 1}
         find({"location": {$near : {$geometry : { type : "Point", coordinates: [long, lat], $maxDistance:200}}}})
+        maxDistance in meters, LONG,LAT
 
 //Text indexes.
 Full text search index, queries into the text, one or several word.
 ensureIndex({"words" : "text"})
 find({$text : {$search : "dog "}});  // case insensitive
 find({$text : {$search : "dog tree o"}}, {score : {$meta : "textScore"}}).sort({score:{$meta:"textScore}});  <-- best match
+db.movies.find( { $text : { $search : "Big Lebowski" } } )  -- Search for Big OR Lebowski
 
 //Design-Using indexes.
 Goal: Efficient Read / Write operations
@@ -206,9 +210,16 @@ Goal: Efficient Read / Write operations
 - Sort in the database
 Equality >> Sort >>> Range
 .hint(PARTICULAR_INDEX_TO_USE)
+                                          .......... RULES
+                    Equality fields before range fields
+                    Equality fields before sort fields
+                    Sort fields before range fields  --- sort accomplishment in the database not in memory
+
+                    Equality >> SORT >>> RANGE
+
 
 //Profiling
-    LOG_SLOW queries -- Logging
+    LOG_SLOW queries -- Logging this is automatically
     0   default, is OFF
     1   log my slow queries
     2   log all my queries -- debugging feature
@@ -224,7 +235,7 @@ Equality >> Sort >>> Range
 
 
 //Mongo stat command
-Performance tunning command similiar to the iostat
+Performance tunning command similar to the iostat
 1 second and tell us what is happening.
 $mongostat
 insert query update delete getMore(cursor)
@@ -237,6 +248,8 @@ insert query update delete getMore(cursor)
 WiredTiger
     %dirty  cache of wiredtiger
     %used   used
+
+
 
 mongotop.
 Give you how mongo is using the time.

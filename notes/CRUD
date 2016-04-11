@@ -30,16 +30,30 @@ z.a = 1
 z["a"] = 1
 
 BSON
+Is the data inside the documents
 Binary JSON, is a binary-encoded serialization of JSON
-double, string, embedded objects, embedded arrays, null, boolean
-binary data type, objectID("_id"), datetime, int32, int64, regular expressions.
-_id = PK will be immutable, no changes allowed. If you don't provide mongo will provide it
+double, string (UTF-8), embedded objects, embedded arrays, null, boolean (true, false), floating-point numbers,
+binary data type, objectID("_id"), datetime, int32 (NumberInt), int64 (NumberLong), regular expressions(cstring),
+timestamps (new Date() = ISODATE())
+_id = PK will be immutable, no changes allowed. If you don't provide mongo will provide it (byte*12)
+      All document need to have this, required to be present and unique in the collection
 
 doc = { "name" : "Smith", "age" : 30 , "profession" : "hacker"}
 db <-- The used database.
 db.people <-- Collection
+
+INSERT
 db.people.insert(doc);
+db.collection.insert(
+   <document or array of documents>,
+   {
+     writeConcern: <document>,
+     ordered: <boolean>
+   }
+)   ----  returning WriteResult OR BulkWriteResult
+
 db.people.find() <-- All the document in the collection
+db.collection.find(query, projection)
 db.people.findOne() <-- One document random at the collection
 db.people.findOne().pretty() <-- More readable
 db.people.findOne({ CRITERIA }) <-- Analogous to the WHERE clause
@@ -56,8 +70,11 @@ for(i=0; i<1000; i++) {
     }
 }
 
+it-generate a cursor in the server open for 10 minutes, until we exhausted the cursor
+
+db.collection.findOne(query, projection).pretty();
 db.people.findOne({ CRITERIA1, CRITERIA2 }, { FIELDS }) <-- What fields should come back
-//By default, the _id field is included in the results.
+//By default, the _id field is included in the results. !!!!!! -
 //To suppress the _id field from the result set, specify _id: 0 in the projection document.
 
 db.scores.findOne({ "student" : 19 , type : "essay"})
@@ -65,6 +82,12 @@ db.scores.findOne({ "student" : 19 , type : "essay"}, { "score": 1, "_id" : 0 })
 db.scores.findOne({ "student" : 19 , type : "essay"}, { "score": true, "_id" : false })
 db.scores.find({ "score" : 50 , type : "essay"}, { "student": true, "_id" : false })
 db.scores.count()
+db.collection.find(query).count()
+db.collection.aggregate(
+   [
+      { $group: { _id: null, count: { $sum: 1 } } }
+   ]
+)
 
 Query by example queries.
 db.scores.find({ "score" : { $gt : 95 }}) <-- Conditional in a property
@@ -72,6 +95,7 @@ db.scores.find({ "score" : { $gt : 95 },  type: "essay" })
 db.scores.find({ "score" : { $gt : 95, $lte : 98 },  type: "essay" })
 $gte, $lte, $lt, $gt
 UTF representation of the string. Not cross data type boundaries.
+Not span datatypes, not recommend pattern store different types in the same field.
 
 
 //Query base on the structure
@@ -101,7 +125,7 @@ db.people.find({ name : { $gt : "C", $regex : "a"}})
 
 //The next two are not equals
 db.people.find({ score : { $gt : 50, $lt : 60}})
-//The second embedded will override the gt 50 will not add
+//The second embedded will override the gt 50 will not add  // !!!!!
 db.people.find({ score : { $gt : 50} ,  score : { $lt : 60}})
 
 
@@ -110,12 +134,12 @@ db.accounts.insert({name : "Howard", favorites : ["pretzels", "beer"]});
 db.accounts.insert({name : "George", favorites : ["ice cream", "pretzels"]});
 //Queries al polymorphic.
 db.accounts.find({ favorites : "pretzels" }) <-- Check polymorphic between array and not array.
-db.accounts.find({ favorites : "beer" }) <-- Brings that have beer in the array
+db.accounts.find({ favorites : "beer" }) <-- String comparison or array search, TOP level in array, not recurse on subdocuments.
 db.accounts.find({ favorites : "beer" }, name : { $gt : "H" })
 //$all, matches any document that have ALL the specify elements in the array, use another array
 //does not import the order but need to match ALL, order does not matter
 db.accounts.find({ favorites : { $all : ["pretzels", "beer"] }})
-//If you dont use $all, mongo will try to find the exact array, order matters
+//If you dont use $all, mongo will try to find the exact array, order matters, not need to be the exact match could be subset
 db.accounts.find({ favorites :  ["pretzels", "beer"] })
 //If you want to search based on index
 db.accounts.find({ "favorites.1" :  "beer" })
@@ -123,6 +147,8 @@ db.accounts.find({ "favorites.1" :  "beer" })
 db.accounts.find({ name : { $in : ["Howard", "John"] }}
 db.accounts.find({ name : { $in : ["Howard"] }})   ===  db.accounts.find({ name : "Howard" });
 db.accounts.find({ favorites : { $in : ["beer", "ice cream"] }}
+
+Other array options.
 //$nin, matches all the values that are not in the array.
 //$not, useful with regular expression to retrieve all the opposite for the query
 db.users.find({"id_num" : { "$not" : {"$mod" : [5,1]}}});
@@ -144,7 +170,17 @@ db.users.find({email : { personal : "koitoe@gmail.com", work : "koitoer@ge.com" 
 db.users.find({email : { work : "koitoer@ge.com"}});  <-- NOT MATCH, content is not the same
 db.users.find({ "email.work" : "koitoer@ge.com" }); <-- MATCH, allow reach of nested document, specific piece with know of all others.
 
+//Save,
+db.collection.save(
+   <document>, { writeConcern: <document> }
+   )
+If document does not contain _id this will be an insert
+If document contains the _id this will be an update with upsert= true, basically replace the document content.
+
 //Querying cursors.
+When can you change the behavior of a cursor, by applying a sort, skip, or limit to it?
+This can be done at any point before the first document is called and before you've checked to see if it is empty.
+Before hasNext or next the tranmission of the query is not done.
 //Programming loop.
 //Cursor are created and return to the shell, so you can use the cursor for programming tasks.
 cur = db.people.find(); null;
@@ -165,17 +201,32 @@ SORT/SKIP/LIMIT
 //Counting.
 db.scores.find({type : "exam"})
 db.scores.count({type : "exam"})
+db.scores.find({type : "exam"}).count() -- OK
+db.scores.find({type : "exam"}).count({ s : "s"}) --- Ignore internal
 
 //Update - At least two argument
+db.collection.update(query, update, options)
+db.collection.update(
+   <query>,
+   <update>,
+   {
+     upsert: <boolean>,
+     multi: <boolean>,
+     writeConcern: <document>
+   }
+)
+
 db.people.update({ CRITERIA }, { REPLACEMENT}) <-- not change the ID, whole cell replacement.
 //1. Override any other values, whole set replacement.
 db.people.update({ name :  "Smith" },{ name : "Thompson", salary : 50000})
 
 //2. Modify only specific fields.
 db.people.update({ name :  "Smith" }, { $set : { age : 30 }}) <-- If don't exists will be created. ADD or MODIFY
-db.people.update({ name :  "Smith" }, { $inc : { age : 1 }})  <-- Increment if exist if no create with 1
+db.people.update({ name :  "Smith" }, { $inc : { age : 1 }})  <-- Increment if exist if no create with 1 ADD or MODIFY
+                                                                    Create new key with the inc value
 //Remove a field from a document
 db.people.update({ name :  "Jones" } , { $unset : {"profession" : 1 }}); <-- Remove properties not required
+
 //Manipulate arrays. Arrays are zero-index based
 db.arrays.insert({_id : 0 , a : [1, 2, 3, 4]})
 db.arrays.update({_id : 0} , {$set : { "a.2" : 5 }}) <--- [1, 2, 5, 4] Modify the third element
@@ -183,13 +234,16 @@ db.arrays.push({_id : 0} , {$push : { "a" : 6 }}) <--- [1, 2, 5, 4, 6] Add eleme
 db.arrays.push({_id : 0} , {$pop : { "a" : 1 }}) <--- [1, 2, 5, 4 ] Remove one element at the end of array
 db.arrays.push({_id : 0} , {$pop : { "a" : -1 }}) <--- [2, 5, 4 ] Remove first element of the array
 db.arrays.push({_id : 0} , {$pushAll : { "a" : [7, 8, 9]}}) <--- [2, 5, 4, 7, 8, 9] Add all elements, could have duplicates
-db.arrays.push({_id : 0} , {$pull: { "a" : 5 }}) <--- [2, 4, 7, 8, 9]  Remove the selected value from array
+db.arrays.push({_id : 0} , {$pull: { "a" : 5 }}) <--- [2, 4, 7, 8, 9]  Remove the selected value from array, no matter the location
+                                                                       And remove all the coincidences.
 db.arrays.push({_id : 0} , {$pullAll: { "a" : [2, 4, 8] }}) <--- [7, 9]  Remove all the values.
 db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Add the value to the array
 db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Idempotent several times.
 
 //3. Upsert > Update or exist (Upsert create new values if no records match.)
+If upsert is true and no document matches the query criteria, update() inserts a single document
 db.people.update({ name :  "George" }, { $set : { age : 40 }}, {upsert : true }) <-- Construct new element.
+Default behaviour is upsert:false The default value is false, which does not insert a new document when no match is found.
 
 //4. Multi-update ( {} <-- Match every document in the collection )
 db.people.update({ }, { $set : { title : "Dr" }} ) <-- Just first document in the collection matching, DEFAULT behavior
@@ -200,12 +254,19 @@ db.people.update({ }, { $set : { title : "Dr" }}, {multi : true }) <-- Affect al
 
 
 //REMOVE
+db.collection.remove(
+   <query>,
+   {
+     justOne: <boolean>,
+     writeConcern: <document>
+   }
+)
 db.people.remove({CRITERIA})
 db.people.remove({}) <-- All will be removed one by one. One by one update.
 db.people.remove({name : "Alice"}) <-- Remove with name alice, NOT need to use MULTI is automatically
 db.people.remove() <-- Not permitted
 db.people.drop({}) <-- Must faster that be one by one, also discard INDEXES and associated objects
-
+//Are not isolated transactions, affect, then yield and then pickup again.
 
 //FindAndModify
 ps = db.runCommand(
@@ -244,7 +305,20 @@ w=0 will still report issues in socket or protocol exceptions.
 
 
 
-
+db.createCollection("log", { capped : true, size : 5242880, max : 5000 } )   // This is used to create capped collection
+5MB or 5000 documents.
+db.createCollection("people", { size: 2147483648 } )  //preallocate 2GB of space.
+db.createCollection( "contacts",
+   {
+      validator: { $or:
+         [
+            { phone: { $type: "string" } },
+            { email: { $regex: /@mongodb\.com$/ } },
+            { status: { $in: [ "Unknown", "Incomplete" ] } }
+         ]
+      }
+   }
+)   //Can be useful to add validation over the possible records that will insert
 
 
 
