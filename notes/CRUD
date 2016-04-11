@@ -262,7 +262,7 @@ db.collection.remove(
    }
 )
 db.people.remove({CRITERIA})
-db.people.remove({}) <-- All will be removed one by one. One by one update.
+db.people.remove({}) <-- All will be removed one by one. One by one update. default
 db.people.remove({name : "Alice"}) <-- Remove with name alice, NOT need to use MULTI is automatically
 db.people.remove() <-- Not permitted
 db.people.drop({}) <-- Must faster that be one by one, also discard INDEXES and associated objects
@@ -304,7 +304,8 @@ w=0 will still report issues in socket or protocol exceptions.
 { w: <value>, j: <boolean>, wtimeout: <number> }
 
 
-
+show collections.
+db.createCollection("mycol", { capped : true, autoIndexID : true, size : 6142800, max : 10000 } )  --- { "ok" : 1 }
 db.createCollection("log", { capped : true, size : 5242880, max : 5000 } )   // This is used to create capped collection
 5MB or 5000 documents.
 db.createCollection("people", { size: 2147483648 } )  //preallocate 2GB of space.
