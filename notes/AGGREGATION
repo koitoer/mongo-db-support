@@ -317,3 +317,55 @@ db.zips.aggregate([
         
         
         
+Stackoverflow..
+	  db.test.aggregate([
+        { $unwind : "$Doc.sub_docs" },
+		{ $group : { "_id" : "$Doc.sub_docs.Time.ServerTime" , sub_doc : { $push : "$Doc.sub_docs.User.name" } }  },
+		{ $unwind : "$sub_doc" },
+		{ $group : { "_id" : { "time" : "$_id" ,  "user" : "$sub_doc"}  , sum : {$sum : 1}} },
+		{ $project : { "ServerTime":  "$_id.time",  sub_docs : { user : "$_id.user" ,  visits : "$sum" }, _id : 0 }},
+		{ $group : { "_id" : "$ServerTime" , sub_doc : { $push : "$sub_docs" } } },
+		{ $project : { "ServerTime": "$_id" ,  sub_doc : 1, "_id" : 0}}
+	 ]);
+	
+	
+	ANd db.test.insert({
+    Doc: {
+        total: 245,
+        sub_docs: [
+            {
+                accessedURL: "www.example.com",
+                User:{
+                    name: "John"
+                },
+                Time:{
+                    ServerTime: "2016-03-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:43:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:33:41.296+0800"
+                }
+            },
+            {
+                accessedURL: "www.123.com",
+                User:{
+                    name: "John"
+                },
+                Time:{
+                    ServerTime: "2016-04-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:40:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:23:41.296+0800"
+                }
+            },
+            {
+                accessedURL: "www.example.com",
+                User:{
+                    name: "Eric"
+                },
+                Time:{
+                    ServerTime: "2016-03-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:43:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:33:41.296+0800"
+                }
+            }
+        ]
+    }
+});
