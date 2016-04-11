@@ -322,6 +322,15 @@ db.createCollection( "contacts",
 )   //Can be useful to add validation over the possible records that will insert
 
 
+    We cannot delete documents from a capped collection
+    There are no default indexes present in a capped collection, not even on _id field
+    While inserting a new document, MongoDB does not have to actually look for a place to accommodate new document on the disk. 
+         It can blindly insert the new document at the tail of the collection. 
+         his makes insert operations in capped collections very fast.
+    Similarly, while reading documents MongoDB has just to return documents in the same order as present on disk. 
+      This makes the read operation very fast.
+
+
 
 /**** SECTION 1 - QUIZZES   ***/
 
