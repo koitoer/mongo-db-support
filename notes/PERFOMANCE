@@ -28,6 +28,22 @@ db.collection.stats("wiredTiger")
 
 
 Indexes.
+
+    1. Single field indexes. Can be created in embedded just ensure order in subdocuments
+    2. Compound indexes, as far 31 propertiesm using directions
+    3. Geospatial indexes  db.collection.createIndex( { <location field> : "2dsphere" } ) or "2d"
+    4. Text indexes.  db.reviews.createIndex( { comments: "text" } )
+    5. Hashed indexes. db.active.createIndex( { a: "hashed" } ) Hashed indexes support sharding a collection using a hashed shard key
+
+a) TTL remove data after some time { expireAfterSeconds: 3600 }
+b) Unique, reject duplicates { unique: true }
+c) Sparse { sparse: true }, The index skips over any document that is missing the indexed field
+                            The index is “sparse” because it does not include all documents of a collection
+    db.scores.createIndex( { score: 1 } , { sparse: true, unique: true } )
+    This index would permit the insertion of documents that had unique values for the score field or did not include a score field.
+
+A mongod instance can build more than one index in the background concurrently.
+
 TABLE_SCAN dead on performance.
 Index. Order set of things. More order ins better for searching, using binary search LogO2 (Btree)
 Multiple index, need to use the left more thing. -- Compund indexes.
