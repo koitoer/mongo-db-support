@@ -33,6 +33,7 @@ Indexes.
     2. Compound indexes, as far 31 propertiesm using directions
     3. Geospatial indexes  db.collection.createIndex( { <location field> : "2dsphere" } ) or "2d"
     4. Text indexes.  db.reviews.createIndex( { comments: "text" } )
+                      db.posts.find({$text:{$search:"tutorialspoint"}})
     5. Hashed indexes. db.active.createIndex( { a: "hashed" } ) Hashed indexes support sharding a collection using a hashed shard key
 
 a) TTL remove data after some time { expireAfterSeconds: 3600 }
@@ -173,6 +174,11 @@ Query, where the query itself can be satisfied entirely by the index.
     !!Remember the order in the index, should start with the first key in multikey
     the projection need to be the same as the query to be covered, and id suppressed.
     if index i,j,k we need projection _id0, i1,j1,k1.  If we use _id0 not covered, _id0 + i1 + j1 not covered
+ Lastly, remember that an index cannot cover a query if:
+    any of the indexed fields is an array
+    any of the indexed fields is a subdocument
+
+    
 
 Choosing and index.
 Mongo choose candidate indexes, mongo create query plan, create thread for each candidate.
