@@ -21,8 +21,11 @@ Replication is made by three mongo servers, there is one primary and secondaries
 Replica set election is being made in the different types of node.
 Regular type node --   Has the data an can become primary, is a primary or secondary
 Arbitrer            -- Voting, can participate in elections, but no data on it
-Delayed/Regular     -- It is a disaster recovery node, some hours before the othere node, but NOT set as primary p=0
+Delayed/Regular     -- It is a disaster recovery node, some hours before the othere node, but NOT set as must be primary p=0
+                       should be hidden members
 Hidden              -- Such use as analysis. never the primary and p=0, can participate in elections, can not be primary
+
+priority zero can not become primary, prevent secondary to became primary
 
 Write consistency
 It is only a single in a replicate set, the writes go to the primary and read can go to secondaries.
