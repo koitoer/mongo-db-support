@@ -32,7 +32,7 @@ public class FindWithSortSkipAndLimit {
 
 		//BsonDocument, Document are other Generic classes for MongoCollection
 		MongoCollection<Document> collection = db.getCollection("test");
-		collection.dropCollection();
+		//collection.dropCollection();
 
 		for (int i = 0; i < 10; i++) {
 			for (int j = 0; j < 10; j++) {

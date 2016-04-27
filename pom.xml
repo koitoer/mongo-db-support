@@ -24,7 +24,7 @@
 		<!-- Mongo DB -->
 		<org.mongodb.morphia.version>1.0.1</org.mongodb.morphia.version>
 		<org.mongodb.version>1.5.5.RELEASE</org.mongodb.version>
-	    <org.mongodb.driver>3.0.0-beta3</org.mongodb.driver>
+	    <org.mongodb.driver>3.2.1</org.mongodb.driver>
 
 	  	<!-- Spark framework -->
 	  	<com.spark.version>1.1.1</com.spark.version>

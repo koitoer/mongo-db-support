@@ -27,7 +27,7 @@ public class UpdateTest {
 		MongoClient client = new MongoClient(new ServerAddress(), options);
 		MongoDatabase db = client.getDatabase("course").withReadPreference(ReadPreference.secondary());
 		MongoCollection<Document> collection = db.getCollection("test");
-		collection.dropCollection();
+		collection.drop();
 
 		for (int i = 0; i < 10; i++) {
 				collection.insertOne(new Document().append("_id",i).append("x",i));

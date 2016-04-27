@@ -31,7 +31,7 @@ public class SparkMongoFreemarkerStyle {
 			MongoClient client = new MongoClient();
 			MongoDatabase database = client.getDatabase("course");
 			final MongoCollection<Document> collection = database.getCollection("hello");
-			collection.dropCollection();
+			collection.drop();
 
 			collection.insertOne(new Document("name", "MongoDB"));
 

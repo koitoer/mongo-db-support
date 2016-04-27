@@ -35,7 +35,7 @@ public class FindWithFilterTest {
 
 		//BsonDocument, Document are other Generic classes for MongoCollection
 		MongoCollection<Document> collection = db.getCollection("test");
-		collection.dropCollection();
+		collection.drop();
 
 		for (int i = 0; i < 10; i++) {
 			collection.insertOne(new Document()

@@ -1,9 +1,11 @@
 package com.koitoer.spring.mongodb.example;
 
+import java.io.Serializable;
+
 /**
  * Created by mauricio.mena on 25/04/2016.
  */
-public class DataContentResult {
+public class DataContentResult implements Serializable{
 
     String publisherId;
     long total;

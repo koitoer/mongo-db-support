@@ -27,7 +27,7 @@ public class InsertClass {
 
 		//BsonDocument, Document are other Generic classes for MongoCollection
 		MongoCollection<Document> collection = db.getCollection("test");
-		collection.dropCollection();
+		//collection.dropCollection();
 
 
 		Document smith = new Document("name", "Smith").append("age", 30).append("profession", "programmer");
