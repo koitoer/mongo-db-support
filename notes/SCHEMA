@@ -95,6 +95,18 @@ MORPHIA ============================
 @Version <-- Add the version to the document
 
 
+Embedding                           Reference
+Small documents                     Large documents
+Does not change regularly           Volatile data
+Eventual consistency is acceptable  Immediate consistency required
+Document grow in small amount       Documents grow at large scale
+Often need a second query           Data you exclude
+Fast read                           Fast writes
+
+Mongo NOT when 
+    You require transaction
+    You require to joinin
+    Using tool that does not provide support
 
 
 <-- HW3.1 -->
