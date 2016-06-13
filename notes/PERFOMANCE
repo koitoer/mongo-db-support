@@ -26,6 +26,13 @@ Is not the default.
 mongod -dbpath WT -storageEngine wiredTiger
 db.collection.stats("wiredTiger")
 
+3.0                 before 3.0
+createIndex         ensureIndex
+getIndexes          getIndexes
+dropIndex
+dropIndexes
+reIndex
+totalIndexSize
 
 Indexes.
 
