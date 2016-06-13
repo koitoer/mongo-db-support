@@ -1,3 +1,6 @@
+CAP theorem
+Consistency - Availability and Partition Tolerance (2 of 3)
+
 Write concerns
 Write process and Journal
 1  -- false  -- Fast, but small window of vulnerability
@@ -40,11 +43,12 @@ mongod --replSet rs1 --logpath "2.log" --dbPath /data/rs2 --port 27018 --fork
 mongod --replSet rs1 --logpath "3.log" --dbPath /data/rs3 --port 27019 --fork
 
 mongoshell $
-config = { _id:"rs1" , members [{_id: , host , priority, slaveDelay },{_id: , host }]}
+config = { _id:"rs1" , members [{_id: , host , priority, slaveDelay, hidden, arbitrerOnly },{_id: , host }]}
 rs.initiate(config)
 rs.status()  <-- Give status of replica set
 rs.slaveOk() <-- OK to read from secondary !!!
 rs.stepDown() <- Stop the process
+rs.isMaster()
 
 oplog is reading from the primary, and apply the operations to the secondary, secondaries also can read from another
     secondary nodes
@@ -52,10 +56,14 @@ oplog is reading from the primary, and apply the operations to the secondary, se
     show collections
     db.oplog.rs.find()  --- optimeDate
 
+    Indexes does not be the same ( builIndexes = false)
+    Versions does not have the same number
+    Document need to be constant
     oplog longest during the time that we suppose to communicate, also the size of the file.
     If is possible to do upgrades, in different mixed storage types, as wiredTiger.
 
 Primary election
+Minimum number of sensible nodes is equal to 3
 Need to have more than the half votes of the replica set 
 
 Replication supports mixed-mode storage engines. For examples, a mmapv1 primary and wiredTiger secondary.
@@ -69,7 +77,7 @@ The rollback statements are saved if you want to apply them manually in the futu
 To avoid the previous scneario you could do w=majority, that ensure the majority of the nodes have the data before move on
 
 --Write concern in replicaset
-w(number of nodes ack the write)        j                                       wtimeout (time ack from secondary)
+w(number of nodes ack the write)        j (100 ms mongo write to journal)             wtimeout (time ack from secondary)
 1                                       1 (only waiting in the primary)               how long you are going to wait
 2
 3
@@ -126,10 +134,12 @@ config1   --- Should be in different machine and preferable in geogrpahic distri
 config2   --- Starts first, in non-ephemeral stores, there anot part of replica set and ensure two phase commits.
 mongos
 
-         CHUNK
+         CHUNK  (64 MB by default) [1-1024 MB]
+         Never overlap [inclusive, exclusive)
 Range bash --- Hash based
 0...100 S1      hashing algorithm to the shard key
 100.199 S2      You can not do targeted queries, but is efficient for distribute writes
+Every chunk is assigned to a particular shard
 
 Implications of sharding
 Every document now, include the shard key
@@ -164,9 +174,9 @@ db.adminCommand({shardCollection : "collection" , key : {collection_key});
 
 mongos  > sh.status();
 
-sh.enableSharding("test")
+sh.enableSharding("test")  <-- work in database on is (sh, not db)
 db.users.ensureIndex({"username" : 1})
-sh.shardCollection("test.users", {"username" :1});
+sh.shardCollection("test.users", {"username" :1});   <-- per collection
 sh.status()
 
 To find all the data, you need to visit all the shards.  scatter--gather queries
@@ -221,3 +231,12 @@ each shard is a replica set
 "Config servers" store the cluster’s metadata. This data contains a mapping of the cluster’s data set to the shards.
 The query router uses this metadata to target operations to specific shards.
 The metadata maps chunks to shards.
+
+Shards
+  Tehcnique to increase available RAM
+  increase available disk space
+  Reduce load on server 
+  R/W data with greater throuhput that single mongo can handle
+  
+  1. mongod -configsvr -dbpath -f.conf X3
+  2. mongos -condifgdb config1.port    X3
