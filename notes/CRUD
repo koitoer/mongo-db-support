@@ -18,6 +18,11 @@ Insert ------
     db.foo.insert({ document });
     db.foo.insert([ { document1 } ,  { document2 } , { document3 } ]);  <-- Bulk insert.
 
+    .insert({"hola":"hi"})  OK
+    .insert({hola:"hi"})  OK
+    .insert({hola:hi})  NOT
+    .insert({"hola":hi})  NOT
+
 $mongo -->  Command to connect with mongo.
 $help   --> A list of topics
 
