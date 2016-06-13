@@ -165,8 +165,8 @@ db.blog.posts.findOne({CRITERIA}, {"comments": {$slice : -10}})  <-- Return last
 db.blog.posts.findOne({CRITERIA}, {"comments": {$slice : [23, 10]}})   <-- Skip 23 elements and return 10, 24-33
 db.blog.posts.findOne({CRITERIA}, {"comments.$": 1 }})   <-- Return the first comment in the array for criteria
 db.test.find({"x" : { "$elementMatch" : {"$gt" : 10, "$lt": 20} }})  <-- Used to compare values one by one in array
-
 Conditional are always in the inner documents ($lt), and modifiers are always the key of outer document ($inc, $and, $or, $not)
+db.test.findOne(criteria, { "comments" : { "$slice" : 10 }} , equal to the first 10, if you choose -10 equals to last ten
 
 //Queries dot notation, document can nest.
 db.users.insert({name : "koitoer" , email : { work : "koitoer@ge.com" , personal : "koitoe@gmail.com"}});
@@ -221,6 +221,11 @@ db.collection.update(
    }
 )
 
+$inc, $set, $unset
+update({"comments.author", "Mauricio"}, {$set : {"comments.$.author", "Koitoer"}})
+        Update the object within the array that the filter match
+
+
 db.people.update({ CRITERIA }, { REPLACEMENT}) <-- not change the ID, whole cell replacement.
 //1. Override any other values, whole set replacement.
 db.people.update({ name :  "Smith" },{ name : "Thompson", salary : 50000})
@@ -249,6 +254,10 @@ db.arrays.push({_id : 0} , {$addToSet: { "a" : 5 }}) <--- [7, 9, 5]  Idempotent 
 If upsert is true and no document matches the query criteria, update() inserts a single document
 db.people.update({ name :  "George" }, { $set : { age : 40 }}, {upsert : true }) <-- Construct new element.
 Default behaviour is upsert:false The default value is false, which does not insert a new document when no match is found.
+
+        nMatched        nUpserted           nModified
+        0                   1                   0           upsert, true
+        1                   0                   1           upsert, false
 
 //4. Multi-update ( {} <-- Match every document in the collection )
 db.people.update({ }, { $set : { title : "Dr" }} ) <-- Just first document in the collection matching, DEFAULT behavior
