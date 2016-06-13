@@ -2,18 +2,19 @@ Aggregation fwk.
 Transform and combine documents in a collection.
 Pipeline that have several building blocks.
 .aggregate returns an array of result documents
-16MB of data.
+16MB of data per item
+100MB per aggregation pipeline
 
 Grouping
 db.collection.aggregate([   <-- We start with and array
-    { $group : { _id: "$keytoAggregate",
+    { $group : { _id: "$keytoAggregate",    <-- id should be present ALWAYS
                  other_projection: {$sum : 1 }
                 }
     }   <-- This is a document
 ]);
 
 Coumpoud grouping
-_id : { "p1" : "$columcollection1" ,  "index2" : "$column2" }
+_id : { "p1" : "$columcollection1" ,  "index2" : "$column2" }   <-- Dont forget the _id keyword
 Group around all the $collumns that you specified.
 You can insert coumpound key as follows : db.foo.insert({_id:{col1: "val1" , col2 : "val2" }})
 
@@ -31,6 +32,10 @@ $unwind --  normalize data as tags : ["1","a", "c"] ... tags:1, tags:a, tags:c, 
 $out --     taking the ouput of aggregation -- 1:1
 $redact
 $geonear
+
+To use index $match before ($group or $project) if not index then is not considered
+Once your $group or $project you could not use the index anymore
+$sort and $group go to the entire number of shards as it need all the information to organize the output
 
 PROJECTION EXPRESSIONS
 
