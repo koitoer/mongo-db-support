@@ -1,0 +1,111 @@
+mongorestore --colection messages --db enron messages.bson
+
+> db.messages.findOne()
+{
+        "_id" : ObjectId("4f16fc97d1e2d32371003f02"),
+        "body" : "COURT",
+        "filename" : "2.",
+        "headers" : {
+                "Content-Transfer-Encoding" : "7bit",
+                "Content-Type" : "text/plain; charset=us-ascii",
+                "Date" : ISODate("2001-07-30T22:19:40Z"),
+                "From" : "reservations@marriott.com",
+                "Message-ID" : "<32788362.1075840323896.JavaMail.evans@thyme>",
+                "Mime-Version" : "1.0",
+                "Subject" : "84029698 Marriott  Reservation Confirmation Number"
+,
+                "To" : [
+                        "ebass@enron.com"
+                ],
+                "X-FileName" : "eric bass 6-25-02.PST",
+                "X-Folder" : "\\ExMerge - Bass, Eric\\Personal",
+                "X-From" : "Reservations@Marriott.com",
+                "X-Origin" : "BASS-E",
+                "X-To" : "EBASS@ENRON.COM",
+                "X-bcc" : "",
+                "X-cc" : ""
+        },
+        "mailbox" : "bass-e",
+        "subFolder" : "personal"
+		
+		
+		db.messages.aggregate([
+			{$unwind : "$headers.To"},
+			{ $match : {$and : [ {"headers.From" : "andrew.fastow@enron.com" }, { "headers.To" : "john.lavorato@enron.com"}]}},
+			{ $group : { _id:"$id", number : {$sum:1}}}
+		]);
+	
+		db.runCommand(
+			{ aggregate: "messages",
+				pipeline: [
+					{ $unwind : "$headers.To"},
+					{ $group: { _id: {'id': '$_id', 'From': '$headers.From' ,'To': '$headers.To'}, To :{$addToSet : '$headers.To'}}},
+					{ $unwind : "$To"},
+					{ $group : { _id: { "from" : "$_id.From", "to": "$_id.To" } , sum : {$sum : 1 }}},
+					{ $sort : { sum : -1 } },
+					{ $limit :10}
+				],
+			allowDiskUse: true
+			})
+
+		
+		db.messages.update({"headers.Message-ID" : "<8147308.1075851042335.JavaMail.evans@thyme>"} , {$addToSet: { "headers.To" : "mrpotatohead@mongodb.com" }})
+		
+		
+    public void likePost(final String permalink, final int ordinal) {
+        System.out.println(ordinal);
+        Document post = postsCollection.find(eq("permalink", permalink)).first();
+        int i = 0;
+        if (post != null) {
+            List<Document> comments = (List<Document>) post.get("comments");
+            for (Document comment : comments) {
+                if (i == ordinal) {
+                    if (comment.containsKey("num_likes")) {
+                        comment.put("num_likes", (Integer) comment.get("num_likes") + 1);
+                    } else
+                        comment.put("num_likes", 1);
+                }
+            }
+
+            postsCollection.replaceOne(eq("permalink", permalink), post);
+        }
+    }
+	
+	
+	
+	//This will count the number of images tagged as sunrise
+	db.runCommand(
+			{ aggregate: "images",
+				pipeline: [
+					{ $unwind : "$tags" },
+					{ $match: { tags:"sunrises"}},
+					{ $group : { _id: null , sum : {$sum : 1 }}},
+					{ $limit: 10}
+					
+				],
+			allowDiskUse: true
+			})
+	
+		
+					
+			//Obtain the ids for all the images used in the album
+			//These are the ids of the non-orphan images
+			var i = db.album.aggregate([
+			  	{ $unwind : "$images" },
+					{ $group: { _id: null, image: { $addToSet:  "$images"}}}
+				]).map(function(a){return a.image;});
+					
+				//Use previous indexes to remove the orphan images
+				db.images.find({_id: {$nin: i[0]}})
+				db.images.remove({_id: {$nin: i[0]}})
+				
+				
+			  //Look for specific images
+				db.album.aggregate([
+					{ $unwind : "$images" },
+					{ $match : {images:205}}
+					]);
+					
+				
+		
+		

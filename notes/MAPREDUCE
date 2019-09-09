@@ -1,0 +1,21 @@
+Mapreduce is slow and should not be used for real time analysis.
+Parallel across multiple server and they do the task, finally merge all the pieces.
+Will use a map and reduce function written in javascript.
+
+db.runCommand({"mapreduce" :  "collection" , "map" : functionMap, "reduce" : functionReduce})
+
+map, use the emit function emit(key, value)
+reduce, is a funtion(key, emits)
+input, number of documents sent to the map function
+emit, number of times emit was called in the map function
+output, number of documents created in the result collection
+
+Other params are 
+finalize - final function
+keeptemp - maintain unles mongo client dies.
+out -  change the name of temporal collection
+query - filter
+sort - sort
+limit - limit.
+scope - pass params to the mapreduce functions "scope" : {now : new Date()} 
+verbose - get more output of hte process.

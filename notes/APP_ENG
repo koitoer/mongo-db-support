@@ -1,0 +1,242 @@
+CAP theorem
+Consistency - Availability and Partition Tolerance (2 of 3)
+
+Write concerns
+Write process and Journal
+1  -- false  -- Fast, but small window of vulnerability
+1  -- true   -- Slow and vulnerability is remove
+0  -- T/F    -- Unacknowledge response.
+
+Network errors occurs.
+At TCP network connection between server and cliente
+MongoDB servers terminate between receiving the write and responding
+Fail of the ack in the communication.
+
+REPLICATION
+Is done through the oplog that save any write perform in the primary
+oplog is a capped collection stored in the local database.
+Other replica set members also keep its oplog to be possible sync from them
+Basically ask to the latest update from the last one you have.
+To initialize need to copy all the data, but is prefered to restore a backup as this will be faster
+Hearbeat request to let the replica set about existence, also to know if primary can reach majority of set.
+
+Replication is made by three mongo servers, there is one primary and secondaries nodes
+Replica set election is being made in the different types of node.
+Regular type node --   Has the data an can become primary, is a primary or secondary
+Arbitrer            -- Voting, can participate in elections, but no data on it
+Delayed/Regular     -- It is a disaster recovery node, some hours before the othere node, but NOT set as must be primary p=0
+                       should be hidden members
+Hidden              -- Such use as analysis. never the primary and p=0, can participate in elections, can not be primary
+
+priority zero can not become primary, prevent secondary to became primary
+
+Write consistency
+It is only a single in a replicate set, the writes go to the primary and read can go to secondaries.
+Strong consistency and avoid steal data if you R/W from the primary
+Replication is asynchronous so read from another nodes could be a problem, but will scale the system
+In the case of failover, you wont be able to perform any write
+Eventual consistency-- Sometimes you have consistency, this is not in the default option in mongo
+
+Create a replica set.
+mongod --replSet rs1 --logpath "1.log" --dbPath /data/rs1 --port 27017 --fork
+mongod --replSet rs1 --logpath "2.log" --dbPath /data/rs2 --port 27018 --fork
+mongod --replSet rs1 --logpath "3.log" --dbPath /data/rs3 --port 27019 --fork
+
+mongoshell $
+config = { _id:"rs1" , members [{_id: , host , priority, slaveDelay, hidden, arbitrerOnly },{_id: , host }]}
+rs.initiate(config)
+rs.status()  <-- Give status of replica set
+rs.slaveOk() <-- OK to read from secondary !!!
+rs.stepDown() <- Stop the process
+rs.isMaster()
+
+oplog is reading from the primary, and apply the operations to the secondary, secondaries also can read from another
+    secondary nodes
+    use local
+    show collections
+    db.oplog.rs.find()  --- optimeDate
+
+    Indexes does not be the same ( builIndexes = false)
+    Versions does not have the same number
+    Document need to be constant
+    oplog longest during the time that we suppose to communicate, also the size of the file.
+    If is possible to do upgrades, in different mixed storage types, as wiredTiger.
+
+Primary election
+Minimum number of sensible nodes is equal to 3
+Need to have more than the half votes of the replica set 
+
+Replication supports mixed-mode storage engines. For examples, a mmapv1 primary and wiredTiger secondary.
+A copy of the oplog is kept on both the primary and secondary servers.
+The oplog is implemented as a capped collection.
+If the oplog is looped you need to copy the entire dataset from the primary.
+
+In some scenario when the primary goes down and have some writes that the othes node does not have, the failover
+can result in a Rollback, if the primary goes down and not replicate the informations to the nodes. 
+The rollback statements are saved if you want to apply them manually in the future.
+To avoid the previous scneario you could do w=majority, that ensure the majority of the nodes have the data before move on
+
+--Write concern in replicaset
+w(number of nodes ack the write)        j (100 ms mongo write to journal)             wtimeout (time ack from secondary)
+1                                       1 (only waiting in the primary)               how long you are going to wait
+2
+3
+majority <--- is a value when you use replica set.
+Connection, collection or replicaset
+You can create tags to make replicas in other facilities, to avoid a facility goes down
+
+
+Read preference, by default is over the primary node
+You can read from the secondary with read preference, 
+    Primary (DEF), read from primary 
+    Primary Preferred, primary but if not Im fine with SEC
+    Secondary (SEC only) - EVENTUALLY consistent read, rotate read of the secondary, not primary
+    Secondary Preferred (SEC y PRM),
+    Nearest (15 ms)
+                read_preference = ReadPreference.SECONDARY
+
+You may not read what you previously wrote to MongoDB on a secondary because it will lag behind by some amount.
+If your write traffic is great enough, and your secondary is less powerful than the primary, you may overwhelm the secondary, 
+            which must process all the writes as well as the reads. Replication lag can result.
+If the secondary hardware has insufficient memory to keep the read working set in memory, 
+            directing reads to it will likely slow it down.     
+    
+    
+Implications of replication.
+. Seeds Lists -- Drivers need to know at least one member of the replicaSet
+. Write Concern -- Wait for the ACK in w/j parameters, time the write takes to replicate.
+. Read preferences -- What option you will chose, and have support for steal data if that makes the case
+. Errors can happen -- Network errors, checking for exception in R/W, failovers, unique key constrants.
+
+
+SHARDING (sh command)
+Auto scalability, handle scaling out.
+Collection wil be splitted in different mongo instances, for large collections
+Hash based sharding or range based approach.
+Shards also have replicaSet, 3 host on a shard, queries get distributed via the mongos
+mongos is a router that keep the distribution of the collection in the sharding, we need to have range based approach with shard key
+chunks lives in a particular shard, mongos talk with replicaSet and scatter the request , could be more than one mongoS is stateless
+If you define a shar key all documents in the collection must have the shard key
+Collections not shared are stored in Shard0
+Once you have shard and replica you dont connect anymore to the mongo instances, you use the mongos
+3 REPLICAset with 3 servers with 3 config servers
+Config servers tell us how the collection is distribuited in the shards
+Config servers makes two-phase commits in the write of the shards.
+Mongos talk to config servers
+
+Building a sharding environment.
+Mongos 27017
+repicaSet0
+repicaSet1
+repicaSet2
+config0  .--- Brain of the cluster, they hold all of the metada about which servers hold what data
+config1   --- Should be in different machine and preferable in geogrpahic distributed.
+config2   --- Starts first, in non-ephemeral stores, there anot part of replica set and ensure two phase commits.
+mongos
+
+         CHUNK  (64 MB by default) [1-1024 MB]
+         Never overlap [inclusive, exclusive)
+Range bash --- Hash based
+0...100 S1      hashing algorithm to the shard key
+100.199 S2      You can not do targeted queries, but is efficient for distribute writes
+Every chunk is assigned to a particular shard
+
+Implications of sharding
+Every document now, include the shard key
+Shard key is immutable
+Index that start with the shard key, could be a multiple index.
+No shard key, ... seak in all the shards
+No unique key, unless is part of the shard key, indexes are in each shard, so unique dont work as index dont know the entire collection
+Shard key can not be arrays.
+Geospational index does not allow sharding
+
+What index would be required to allow MongoDB to shard on zip code?
+An index on zip or a non-multi-key index that starts with zip. 
+
+
+Sharding+replication
+Are always done together, mongos could have acces sto primaries and secondaries.
+Stil the concern of th write concern and j,w, and w_timeout
+We can have more than one mongos process but drivers shoudl support that. This be made due to failover in that part.
+If you have several mongos, in case of failure the driver will be in charge the redundancy,
+
+Choosing a shard key
+1. Sufficient cardinality, sufficient to be a proper key, we can resolve that adding more fields to the shard
+   Need to have sufficient cardinality to have spread across the shards.
+   We can put a secondary part of the key
+2. Avoid hotspotting, multitenant increasing  $minkey --- , $maxkey, a problem if always write to the last shard.
+   Most of the dates have this hotspotting problems
+   You can not have a key in an array, you need and index, and array have multikey indexes and that is not allowed.
+
+
+db.adminCommand({enableSharding : true})
+db.adminCommand({shardCollection : "collection" , key : {collection_key});
+
+mongos  > sh.status();
+
+sh.enableSharding("test")  <-- work in database on is (sh, not db)
+db.users.ensureIndex({"username" : 1})
+sh.shardCollection("test.users", {"username" :1});   <-- per collection
+sh.status()
+
+To find all the data, you need to visit all the shards.  scatter--gather queries
+To find specific data and only visit a shard --- targeted queries
+
+
+SHARD on test
+cluster = new ShardingTest({"shards" : 3, "chunksize" : 1}):
+cluster.stop();
+
+1.include the shard key in the queries
+2.send to geographical closest
+Sharding for read or write thouhput
+Sharding to increase system resources
+
+Ascending shar key with the max proble,
+Randomly distributed shard keys
+Location based shard keys
+
+
+chunk
+    A contiguous range of shard key values within a particular shard.
+    Chunk ranges are inclusive of the lower boundary and exclusive of the upper boundary.
+    MongoDB splits chunks when they grow beyond the configured chunk size, which by default is 64 megabytes
+
+
+Splitting
+Splitting is a background process that keeps chunks from growing too large.
+When a chunk grows beyond a specified chunk size, MongoDB splits the chunk in half.
+Inserts and updates triggers splits. Splits are an efficient meta-data change. To create splits,
+MongoDB does not migrate any data or affect the shards.
+
+Balancing
+Run from mongoSS
+The balancer is a background process that manages chunk migrations. The balancer can run from any of the mongos
+instances in a cluster. When the distribution of a sharded collection in a cluster is uneven, the balancer process
+migrates chunks from the shard that has the largest number of chunks to the shard with the least number of chunks
+until the collection balances
+
+primary shard
+    The shard that holds all the un-sharded collections
+
+
+"Shards" store the data. To provide high availability and data consistency, in a production sharded cluster,
+each shard is a replica set
+
+"Query Routers, or mongos instances", interface with client applications and direct operations to the appropriate shard
+ or shards. A client sends requests to a mongos, which then routes the operations to the shards and returns
+ the results to the clients. A sharded cluster can contain more than one mongos to divide the client request load,
+ and most sharded clusters have more than one mongos for this reason.
+
+"Config servers" store the cluster’s metadata. This data contains a mapping of the cluster’s data set to the shards.
+The query router uses this metadata to target operations to specific shards.
+The metadata maps chunks to shards.
+
+Shards
+  Tehcnique to increase available RAM
+  increase available disk space
+  Reduce load on server 
+  R/W data with greater throuhput that single mongo can handle
+  
+  1. mongod -configsvr -dbpath -f.conf X3
+  2. mongos -condifgdb config1.port    X3

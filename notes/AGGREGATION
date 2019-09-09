@@ -1,0 +1,376 @@
+Aggregation fwk.
+Transform and combine documents in a collection.
+Pipeline that have several building blocks.
+.aggregate returns an array of result documents
+16MB of data per item
+100MB per aggregation pipeline
+
+Grouping
+db.collection.aggregate([   <-- We start with and array
+    { $group : { _id: "$keytoAggregate",    <-- id should be present ALWAYS
+                 other_projection: {$sum : 1 }
+                }
+    }   <-- This is a document
+]);
+
+Coumpoud grouping
+_id : { "p1" : "$columcollection1" ,  "index2" : "$column2" }   <-- Dont forget the _id keyword
+Group around all the $collumns that you specified.
+You can insert coumpound key as follows : db.foo.insert({_id:{col1: "val1" , col2 : "val2" }})
+
+
+Aggregation Pipeline (aggregate([PIPELINE]) )
+Collection -> $project -> $match -> $group -> $sort -> Result
+
+$project --  reshape the document, select some fields, extract fields from subdocument -- 1:1 ("$fieldname")
+$match --   filtering step, only the document you want to use -- N:1 ($gt, $lt, $in), good first as reduce set and use indexes
+$group --   aggregate, you could use sum, count --- N:1
+$sort --    sorting --- 1:1    ($first and $last)
+$skip --    skips number of records --- N:1
+$limit --   limit the number of records -- N:1
+$unwind --  normalize data as tags : ["1","a", "c"] ... tags:1, tags:a, tags:c, explotion of dat--- 1:N
+$out --     taking the ouput of aggregation -- 1:1
+$redact
+$geonear
+
+To use index $match before ($group or $project) if not index then is not considered
+Once your $group or $project you could not use the index anymore
+$sort and $group go to the entire number of shards as it need all the information to organize the output
+
+PROJECTION EXPRESSIONS
+
+Mathematical expressions (numeric values)
+"$add" : [expr1, expr2, ... exprN]
+"$substract" : [expr1, expr2]
+"$multiply"
+"$divide" : [expr1, expr2]
+"$mod" : [expr1, expr2]
+
+Date expression (date values)
+"$year", "$month", "$week", "$dayOfMonth", "$dayOfWeek", "$dayOfYear", "$hour", "$minute", "$second"
+
+String expressions (string values)
+"$substr", "$concat", "$toLower", "$toUpper"
+
+Logical
+"$cmp", "$strcasecmp", "$eq/$ne/$lt/$gt", "$and", "$or", "$nor", "$cond : [booleanExpr, trueExpr, falseExpr] ", "$ifNull"
+
+
+Group by multiple keys.
+select a, b, count(*) from p group by a, b
+Compound id : _id: {"manufacter":"$manufacturer", category:"category"}
+              _id: {"manufacter":"$manufacturer"}
+
+
+Aggregation expression use in the $group
+
+$sum, add every time you find the key, sum a normal number or a specific field
+        db.products.aggregate([
+            { $group : { _id: "$key",  sum_prices: {$sum : $price } } }
+        ]);
+$avg, average for each key
+        db.products.aggregate([
+            { $group : { _id: "$key",  avg_prices: {$avg : $price } } }
+        ]);
+
+//Array operators.
+$addtoSet, create new key in the result and add any property that we choose, group and create and array
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$addToSet : $category } } }
+        ]);
+        _id: XXX,  categories:[a,b,c]
+
+$push, add item several times if are more than one
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$push : $category } } }
+        ]);
+        _id: XXX,  categories:[a,a,a,a,b,c]
+
+$min
+$max
+        db.products.aggregate([
+            { $group : { _id: "$key",  categories: {$max : $price } } }
+        ]);
+
+//Grouping examples
+{"$group" : { "_id": "$day" }}  //Just one field
+{"$group" : { "_id": { "state" : "$state", "city" : $city" }}}
+
+//Double grouping, add more than one aggregation stage
+db.fun.aggregate([{$group:{_id:{a:"$a", b:"$b"}, c:{$max:"$c"}}},
+                  {$group:{_id:"$_id.a", c:{$min:"$c"}}}])
+
+
+$first, require first to sort the documents
+$last, require first to sort the documents
+
+//In case of the sharding, group need to go to each node and pull the information groupin in the mongos, based on this fact
+//The remaining of the pipeline will be execute in the mongos
+//this effect is called roadblock and also "$sort" has the same behaviour
+
+$PROJECT, (SELECT)
+    remove keys, add new keys, reshape keys, use functions on keys ($toUpper, $toLower, $add, $multiply)
+    db.products.aggregate([
+        { $project : { _id: 0, [0/1] <-- depending if visible or not
+                        'maker' : { $toLower: "$manufacturer"},
+                        'details: { 'category': "$category",
+                                    'price' : {$multiply : ["$price" , 10 ]}
+                                  },
+                        'item':"$name'
+                     }
+        }
+    ]);
+    
+    //For nested documents
+    { _id: 1, user: "1234", stop: { title: "book1", author: "xyz", page: 32 } }
+    db.bookmarks.aggregate( [ { $project: { stop: { title: 1 } } } ] ) --- OK
+    db.bookmarks.aggregate( [ { $project: { "stop.title": 1 } } ] ) ------ OK
+
+    //For arrays.
+    db.collection.aggregate( [ { $project: { myArray: [ "$x", "$y", "$someField" ] } } ] 
+
+
+$MATCH, (WHERE, HAVING)
+    perform a filter, go each one and filter.
+    db.zips.aggregate([
+        { $match : {
+                    state:"CA"
+                   }
+        },
+        { $group : {
+                    _id:"$city",
+                    population: { $sum : "$pop"},
+                    zip_codes: {$addToSet : "_id"}
+                  }
+         },
+        { $project: {
+                    _id:0
+                     city: "$_id",
+                     population:1
+                     zip_codes:1
+                    }
+        }
+    ]);
+
+$SORT (ORDER BY)
+    disk and memory based sorting, by default in memory will be 100MB the max
+    before or after the grouping stage
+
+    db.zips.aggregate([
+        { $match : {
+                    state:"CA"
+                   }
+        },
+        { $group : {
+                    _id:"$city",
+                    population: { $sum : "$pop"},
+                    zip_codes: {$addToSet : "_id"}
+                  }
+         },
+        { $project: {
+                    _id:0
+                     city: "$_id",
+                     population:1
+                     zip_codes:1
+                    }
+        },
+        { $sort : {
+                    population : -1
+                  }
+        }
+    ]);
+
+$SKIP AND $LIMIT (LIMIT(
+    good practice is first sort, then skip and finally limit.
+    { $skip : 10},
+    { $limit : 1}
+
+$FIRST AND $LAST
+    first or last value of each group, after the sort phase
+    {
+       $group:{
+                _id: "$id.state",
+                city: {$first: "$id_city"}
+              }
+    }
+
+$UNWIND
+    move out array form and we unwind to unjoin the data, and rejoin in a way that is useful
+    {a:1, c: ["apple", "pear", "orange"]} ---
+                {a:1, c: "apple"} .. {a:1, c: "pear"} .. {a:1, c: "orange"}
+
+Double $UNWIND, if you have more than one array
+$push operator, could reverse the effect for unwind and double unwind
+
+//Aggregation commands.
+db.foo.count()
+db.runCommand({"distinct": collection, "key" : "valuetoDistinct" })
+
+
+//Limitations of the aggregation fwk.
+- 100 MB limit for pipeline stages, but we can use allowDiskUse, otherwise you will be limited in the stages
+- 16 MB limit by default in python. but we can return cursors.
+- sharding, in a sharding system as soon as you check, if you group or other thing that you need to look up the entire
+    collection you will move all the data to one shard, so can be moved there, so performance and scalability not works
+    well, option is use Hadoop-Map/reduce
+
+
+
+
+
+
+
+
+db.products.aggregate([
+    { $group : { _id: "$category",  num_products: {$sum : 1 } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  population: {$sum : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  population: {$avg : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$city",  postal_codes: {$addToSet : "$_id" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+            { $group : { _id: "$state",  pop: {$max : "$pop" } } }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+        { $project : { _id: 0,
+                       city : { $toLower: "$city"},
+                        pop : 1,
+                        state : 1,
+                        zip:"$_id"
+                     }
+        }
+]);     <--- QUIZ
+
+db.zips.aggregate([
+        { $match : {
+                    pop : {$gt : 100000}
+                   }
+}]);    <--- QUIZ
+
+db.zips.aggregate([
+        { $sort : {
+                    state : 1,
+                    city: 1
+                   }
+}]);    <--- QUIZ
+
+
+
+        db.posts.aggregate([
+            {$unwind : "$comments"},
+            {$group : { _id: "$comments.author",  num_comments: {$sum : 1 } } },
+            {$sort : { num_comments : -1}},
+            {$limit : 1}
+        ]);
+        
+        
+         db.zips.aggregate([
+        { $match : { 
+					$and : [ 
+						{state: { $in : ["CA", "NY"]}},
+						{pop:{$gt : 25000}}
+						]
+                   }
+        },
+		{ $group : {
+                    _id:null,
+                    population: { $avg : "$pop"}
+                  }
+        }
+		])
+		
+        db.zips.aggregate([
+            { $match: {$or: [ {state: "CA"}, {state: "NY"} ] } },
+            { $group: { _id: { city: "$city" }, pop: { $sum: "$pop" } } },
+            { $match: { "pop": { $gt: 25000 } } },
+            { $group: { _id: null, avg_pop_of_city: { $avg: "$pop" } } }
+        ])
+        { "_id" : null, "avg_pop_of_city" : 44804.782608695656 }
+        
+        
+        HW5.3
+            db.grades.aggregate([
+            { $unwind: '$scores' },
+            { $match : { $nor : [ { "scores.type" : 'quiz'} ]}},
+            { $group: { _id: {  student_id : "$student_id" , class: "$class_id" } , avg_per_class_per_std  : {$avg : '$scores.score'} } },
+            { $group: { _id: "$_id.class" , avg_per_class  : {$avg : '$avg_per_class_per_std'} } },
+            { $sort : { avg_per_class : -1 }}
+    ]);
+    
+     HW5.4
+     db.zips.aggregate([
+	   {$project: 
+	     { first_char: {$substr : ["$city",0,1]} , city: 1, pop: 1, zip:"$_id"}	 
+	   },
+	   {
+	     $match : { first_char : {$regex:/\d/} }
+	   },
+	   {
+	    $group : {_id: null, sum : {$sum : "$pop" }}
+	   }
+	]);
+        
+        
+        
+Stackoverflow..
+	  db.test.aggregate([
+        { $unwind : "$Doc.sub_docs" },
+		{ $group : { "_id" : "$Doc.sub_docs.Time.ServerTime" , sub_doc : { $push : "$Doc.sub_docs.User.name" } }  },
+		{ $unwind : "$sub_doc" },
+		{ $group : { "_id" : { "time" : "$_id" ,  "user" : "$sub_doc"}  , sum : {$sum : 1}} },
+		{ $project : { "ServerTime":  "$_id.time",  sub_docs : { user : "$_id.user" ,  visits : "$sum" }, _id : 0 }},
+		{ $group : { "_id" : "$ServerTime" , sub_doc : { $push : "$sub_docs" } } },
+		{ $project : { "ServerTime": "$_id" ,  sub_doc : 1, "_id" : 0}}
+	 ]);
+	
+	
+	ANd db.test.insert({
+    Doc: {
+        total: 245,
+        sub_docs: [
+            {
+                accessedURL: "www.example.com",
+                User:{
+                    name: "John"
+                },
+                Time:{
+                    ServerTime: "2016-03-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:43:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:33:41.296+0800"
+                }
+            },
+            {
+                accessedURL: "www.123.com",
+                User:{
+                    name: "John"
+                },
+                Time:{
+                    ServerTime: "2016-04-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:40:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:23:41.296+0800"
+                }
+            },
+            {
+                accessedURL: "www.example.com",
+                User:{
+                    name: "Eric"
+                },
+                Time:{
+                    ServerTime: "2016-03-30T15:45:41.296+0000",
+                    FirstAccessTime: "2016-03-30T12:43:41.296+0800",
+                    LastAccessTime: "2016-03-30T15:33:41.296+0800"
+                }
+            }
+        ]
+    }
+});

@@ -1,0 +1,219 @@
+RDS - Third normal form - Agnostic to the application
+Single most important factor in design schema is Matching the data access patterns of your application
+MongoDB -Application - Driven Schema
+    Read only / What are accessed more frequently
+
+1. Support for rich documents, not tabular data, JSON and arrays.
+2. No manage for joins
+3. Pre-join and/or embedded data  <-- Embed data in ways that makes sense to your application
+4. No constraints, no FK <-- Living without constraints, no guarantee that data is consistent between ids
+                             But keeping your data consistent even though mongo lacks foreign keys
+                         <-- Embedded sometimes is the best way to guarantee that, that appears directly in
+                                the document
+
+5. Atomic operation, mongo don't support transactions.
+                        <-- Living without transactions, but we have atomic operations
+                        Atomicity
+                        Consistency
+                        Isolation
+                        Durability
+                                <-- All the changes will be completed before anyone access the information
+                                <-- 1. Restructure your code, working in a single document
+                                <-- 2. Implement some sort of locking in software, locks, syncronized, final
+                                <-- 3. Tolerate, support certain inconsistencies.
+
+6. No declared schema
+
+Goals of normalization
+1.Free the database of modification anomalies <-- embedded data non create anomalies, but performance could duplicate.
+2.Minimize redesign when extending <-- mongo have a lot of flexibility
+3.Avoid any bias toward any particular access pattern. <-- make application/solution
+
+If you are doing in a RDS way, you probably are doing it bad !!!
+
+Relations =======================================================
+
+(1-1)
+Employee--Resume
+  . Embed employee in resume
+  . Embed resume in employee
+  . Use the id in employee for his resume
+  . Use the id in resume for his employee
+  * Frequency of access, a lot of impact where impact
+  * Size of the items, to keep separately
+  * Size of the document, if is larger than 16MB
+  * Atomicity of data, update it all at once, you have embedded
+
+(1-Many)
+City-/Person
+    . Use array of person in city wont work
+    . Use people collection and embed the city <-- Duplication of data, could cause inconsistencies
+    . True linking though the unique id of the other collection <-- Reference to city to people
+    . Linking from the many to the one .... from People to City
+    . Requires two collection.
+
+(1-Few)
+BlogPosts-/Comments
+    . Feasible to have blog and embed the comments as an array
+
+(Many-Many)
+Books/-/Authors
+    . Linked created and array of books in the author collection
+    . Linked the books with the array of authors.
+    . Have the link in two sizes.
+
+Multikey indexes.
+db.collection.ensureIndexes. Useful when we have embedded data, to link and embed in efficient way when you query.
+
+Benefits of embedding.
+    1. Improve read performance. <-- High latency on the disks/High bandwidth, collocated the data in the same sector
+    2. One round trip to the DB.
+    -1. You could make the write operations more slow if you modify it.
+
+Trees.
+Home/Outdoors/Winter/Snow.
+1. We can make the parent in the child record, and make it recursive to the top.
+2. We can have the children nodes all of them
+3. We can have the list of ancestors
+
+When to de-normalize
+1:1         Embed
+1:Many      Embed from the many to one.
+Many:Many   Link
+
+expireAfterSeconds is TTL, will expire after certain time.
+
+MORPHIA ============================
+@Entity <-- Basic entry point for morphia.
+@Indexes <-- Group the @Index annotation
+@Index <-- Add the index and its properties
+@Indexed <-- Above the properties, is other way
+@Id <-- Every morphia entity needs, any type could works
+@Property <-- Not really needed but morphia will take by default all of them
+@Reference <-- Array of DBRef() , could be eager of lazy, not constraint of validated, no FK!!!
+@Transient <-- Don't save the property
+@Version <-- Add the version to the document
+
+
+Embedding                           Reference
+Small documents                     Large documents
+Does not change regularly           Volatile data
+Eventual consistency is acceptable  Immediate consistency required
+Document grow in small amount       Documents grow at large scale
+Often need a second query           Data you exclude
+Fast read                           Fast writes
+
+Mongo NOT when 
+    You require transaction
+    You require to joinin
+    Using tool that does not provide support
+
+
+<-- HW3.1 -->
+mongoimport -d school -c students < students.json
+
+
+package course;
+
+import javax.management.Query;
+import javax.print.Doc;
+
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.UpdateOptions;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.*;
+
+public class BlogPostDAO {
+    MongoCollection<Document> postsCollection;
+
+    public BlogPostDAO(final MongoDatabase blogDatabase) {
+        postsCollection = blogDatabase.getCollection("posts");
+    }
+
+    // Return a single post corresponding to a permalink
+    public Document findByPermalink(String permalink) {
+        // todo  XXX
+        final Bson filter = new Document().append("permalink", permalink);
+        Document post = postsCollection.find(filter).first();
+        return post;
+    }
+
+    // Return a list of posts in descending order. Limit determines
+    // how many posts are returned.
+    public List<Document> findByDateDescending(int limit) {
+
+        // todo,  XXX
+        // Return a list of Documents, each one a post from the posts collection
+        final Bson sort = new Document().append("date", -1);
+        List<Document> posts = postsCollection.find().limit(limit).sort(sort).into(new ArrayList<Document>());;
+
+
+        return posts;
+    }
+
+
+    public String addPost(String title, String body, List tags, String username) {
+
+        System.out.println("inserting blog entry " + title + " " + body);
+
+        String permalink = title.replaceAll("\\s", "_"); // whitespace becomes _
+        permalink = permalink.replaceAll("\\W", ""); // get rid of non alphanumeric
+        permalink = permalink.toLowerCase();
+        permalink = permalink+ (new Date()).getTime();
+
+
+        // todo XXX
+        // Remember that a valid post has the following keys:
+        // author, body, permalink, tags, comments, date
+        //
+        // A few hints:
+        // - Don't forget to create an empty list of comments
+        // - for the value of the date key, today's datetime is fine.
+        // - tags are already in list form that implements suitable interface.
+        // - we created the permalink for you above.
+
+        // Build the post object and insert it
+        Document post = new Document();
+        post.append("author", username);
+        post.append("body", body);
+        post.append("permalink", permalink);
+        post.append("comments", new ArrayList<Document>(0));
+        post.append("date", new Date());
+        post.append("tags", tags);
+        post.append("title", title);
+
+        postsCollection.insertOne(post);
+        return permalink;
+    }
+
+
+    // Append a comment to a blog post
+    public void addPostComment(final String name, final String email, final String body,
+                               final String permalink) {
+
+        // todo  XXX
+        Document comment = new Document();
+        if(email != null){
+            comment.append("email", email);
+        }
+        comment.append("author", name);
+        comment.append("body", body);
+
+        Document doc = postsCollection.find(new Document().append("permalink", permalink)).first();
+        final UpdateOptions updateOptions =  new UpdateOptions();
+        updateOptions.upsert(true);
+        postsCollection.updateOne(new Document().append("permalink", permalink),new Document("$addToSet", new Document("comments", comment)) , updateOptions);
+
+        // Hints:
+        // - email is optional and may come in NULL. Check for that.
+        // - best solution uses an update command to the database and a suitable
+        //   operator to append the comment on to any existing list of comments
+
+    }
+}
+
+
+
