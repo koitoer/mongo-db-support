@@ -27,7 +27,7 @@
 	    <org.mongodb.driver>3.2.1</org.mongodb.driver>
 
 	  	<!-- Spark framework -->
-	  	<com.spark.version>1.1.1</com.spark.version>
+	  	<com.spark.version>2.7.2</com.spark.version>
 	    <google.guava.version>16.0.1</google.guava.version>
 
 
