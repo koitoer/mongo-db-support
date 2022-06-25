@@ -23,7 +23,7 @@
 
 		<!-- Mongo DB -->
 		<org.mongodb.morphia.version>1.0.1</org.mongodb.morphia.version>
-		<org.mongodb.version>1.5.5.RELEASE</org.mongodb.version>
+		<org.mongodb.version>3.3.5</org.mongodb.version>
 	    <org.mongodb.driver>3.2.1</org.mongodb.driver>
 
 	  	<!-- Spark framework -->
